@@ -75,6 +75,11 @@
             <span>⚠ TTS 配置已升级,请重新添加 MiMo 配置。</span>
             <button @click="dismissMigrationNotice" class="text-yellow-600 hover:text-yellow-900 font-bold">✕</button>
         </div>
+        <!-- TTS 调试面板(常驻,排查用) -->
+        <details class="mb-4 bg-slate-50 border border-slate-300 rounded-lg p-3 text-xs font-mono">
+            <summary class="cursor-pointer text-slate-600 font-bold">🔧 TTS 调试面板(查看上次合成的 emotion tag)</summary>
+            <div id="tts-debug-panel" class="mt-2 whitespace-pre-wrap text-slate-800">尚未生成</div>
+        </details>
         <div v-if="previewImageUrl" @click="closeImagePreview"
             class="fixed inset-0 z-[10000] bg-slate-950/78 backdrop-blur-sm flex items-center justify-center p-4">
             <button @click.stop="closeImagePreview"
@@ -3486,6 +3491,21 @@
                                 autoEmotionTag = `(${emotionNames[maxIdx]} ${intensityWord})`;
                             }
                         }
+
+                        // 调试输出(常驻,便于核对 emotion 是否正确传入)
+                        const debugInfo = {
+                            lineEmotion: line.emotion,
+                            lineIntensity: line.intensity,
+                            mimoIntensity: intensityMap[line.intensity] || '明显',
+                            autoEmotionTag,
+                            styleDesc,
+                            lineText: line.text,
+                            finalText: autoEmotionTag ? `${autoEmotionTag}${line.text}` : line.text
+                        };
+                        console.log('[TTS DEBUG]', JSON.stringify(debugInfo, null, 2));
+                        window.__lastTtsDebug = debugInfo;
+                        const panel = document.getElementById('tts-debug-panel');
+                        if (panel) panel.textContent = JSON.stringify(debugInfo, null, 2);
 
                         // 2. 音色库查找 + 强制使用角色设计音色(不再降级到 defaultVoice)
                         const timbre = timbres.value.find(t => t.refPath === char.voiceFile);
