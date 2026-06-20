@@ -118,4 +118,11 @@ BGM背景音乐资源库：
 - 实施人:Claude + sdsds222
 - 验证命令:见 `docs/superpowers/plans/2026-06-20-mimo-tts-migration.md` Task 1
 
+### 开发与测试
+
+- 单元测试:`Projects/tests-tts.html` + `Projects/tests-tts-fixture.js`
+- 浏览器打开 `Projects/tests-tts.html` 跑 19 个 MiMoTTS 纯函数测试
+- node 端等效运行:`node Projects/run-tests-node.mjs`
+- 实施参考:`docs/superpowers/specs/2026-06-20-tts-interface-adjustment-design.md` + `docs/superpowers/plans/2026-06-20-mimo-tts-migration.md`
+
 
