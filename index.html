@@ -200,12 +200,19 @@
             <!-- 配置列表 -->
             <div class="grid gap-3">
                 <div v-for="conf in llmConfigs" :key="conf.id"
-                    class="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl hover:shadow-sm transition-shadow">
+                    :class="['flex items-center justify-between p-4 border rounded-xl hover:shadow-sm transition-shadow', currentConfigId === conf.id ? 'bg-green-50 border-green-300' : 'bg-white border-slate-200']">
                     <div>
-                        <div class="font-bold text-slate-800 text-sm">{{ conf.name }}</div>
+                        <div class="flex items-center gap-2">
+                            <div class="font-bold text-slate-800 text-sm">{{ conf.name }}</div>
+                            <span v-if="currentConfigId === conf.id" class="px-2 py-0.5 bg-green-500 text-white text-[10px] rounded-full font-bold">已启用</span>
+                        </div>
                         <div class="text-xs text-slate-400 mt-1">{{ conf.model }} | {{ conf.baseUrl }}</div>
                     </div>
                     <div class="flex gap-2">
+                        <button @click="testLlmConfig(conf, $event)"
+                            class="px-3 py-1 text-xs text-purple-600 hover:bg-purple-50 rounded-lg font-medium transition-all">测试</button>
+                        <button @click="enableLlmConfig(conf.id)"
+                            :class="['px-3 py-1 text-xs rounded-lg font-medium transition-all', currentConfigId === conf.id ? 'bg-slate-200 text-slate-400 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600']">{{ currentConfigId === conf.id ? '当前' : '启用' }}</button>
                         <button @click="editConfig(conf)"
                             class="text-xs text-blue-600 hover:underline font-medium">编辑</button>
                         <button @click="deleteConfig(conf.id)"
@@ -229,10 +236,16 @@
                             placeholder="例如: IndexTTS 2">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Base URL</label>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">IndexTTS Base URL (语音合成)</label>
                         <input v-model="ttsForm.baseUrl"
                             class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
                             placeholder="http://127.0.0.1:8300">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Qwen3TTS URL (音色生成，可留空)</label>
+                        <input v-model="ttsForm.qwenUrl"
+                            class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                            placeholder="http://127.0.0.1:8080 (如与IndexTTS相同可留空)">
                     </div>
                 </div>
                 <div class="flex gap-2">
@@ -249,7 +262,8 @@
                     class="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl hover:shadow-sm transition-shadow">
                     <div>
                         <div class="font-bold text-slate-800 text-sm">{{ conf.name }}</div>
-                        <div class="text-xs text-slate-400 mt-1">{{ conf.baseUrl }}</div>
+                        <div class="text-xs text-slate-400 mt-1">IndexTTS: {{ conf.baseUrl }}</div>
+                        <div v-if="conf.qwenUrl" class="text-xs text-slate-400">Qwen3TTS: {{ conf.qwenUrl }}</div>
                     </div>
                     <div class="flex gap-2">
                         <button @click="editTtsConfig(conf)"
@@ -269,6 +283,39 @@
             <!-- 音色管理区域 -->
             <section class="space-y-6">
                 <h2 class="text-lg font-bold text-slate-800 border-b pb-2">音色管理</h2>
+
+                <!-- AI 音色生成面板 -->
+                <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-5 rounded-xl border border-indigo-200">
+                    <h3 class="text-sm font-bold text-indigo-700 mb-4">🎙️ AI 音色生成</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">音色描述</label>
+                            <textarea v-model="aiTimbreDescription"
+                                class="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 outline-none bg-white"
+                                rows="3"
+                                placeholder="描述想要的音色，如：温柔甜美的年轻女性声音，低沉磁性的中年男性声音..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">音色名称</label>
+                            <input v-model="aiTimbreName"
+                                class="w-full px-3 py-2 border border-indigo-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                                placeholder="给这个音色起个名字，如：甜美女声">
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="button" @click="analyzeTimbreDescription"
+                                :class="['px-3 py-2 border rounded-lg text-xs font-bold transition-all flex items-center gap-1', isAnalyzingTimbre ? 'bg-red-50 text-red-600 border-red-200' : 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100']">
+                                <span v-if="isAnalyzingTimbre" class="animate-spin">⏳</span>{{ isAnalyzingTimbre ? '停止' : 'AI分析音色' }}
+                            </button>
+                            <button type="button" @click="generateAIVoiceMain"
+                                :disabled="isGeneratingAIVoice"
+                                :class="['px-5 py-2 border rounded-lg text-xs font-bold transition-all flex items-center gap-1', isGeneratingAIVoice ? 'bg-slate-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700']">
+                                <span v-if="isGeneratingAIVoice" class="animate-spin">⏳</span>{{ isGeneratingAIVoice ? '正在生成中...' : '🎨 Qwen 生成音色' }}
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-slate-400">提示：生成后音频会自动下载到浏览器默认下载目录。</p>
+                    </div>
+                </div>
+
                 <!-- 添加/编辑表单 -->
                 <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
                     <h3 class="text-sm font-bold text-slate-700 mb-4">{{ isEditingTimbre ? '编辑音色' : '添加新音色' }}</h3>
@@ -1394,6 +1441,21 @@
     <script>
         const { createApp, ref, onMounted, computed, watch, onBeforeUpdate } = Vue;
 
+        // === TTS 数据迁移 (v0 → v1) ===
+        (function migrateTtsConfig() {
+          const SCHEMA_VERSION = '1';
+          if (localStorage.getItem('storyforge_tts_schema_version') !== SCHEMA_VERSION) {
+            try {
+              const old = localStorage.getItem('storyforge_tts_configs');
+              if (old) localStorage.setItem('storyforge_tts_configs_backup_v0', old);
+              localStorage.removeItem('storyforge_tts_configs');
+              localStorage.setItem('storyforge_tts_schema_version', SCHEMA_VERSION);
+            } catch (e) {
+              console.warn('TTS config migration failed:', e);
+            }
+          }
+        })();
+
         createApp({
             setup() {
                 // --- System Emotions Definition ---
@@ -1603,7 +1665,7 @@
 
                 // TTS 配置状态
                 const ttsConfigs = ref([]);
-                const ttsForm = ref({ id: '', name: '', baseUrl: '' });
+                const ttsForm = ref({ id: '', name: '', apiKey: '', defaultVoice: 'Chloe' });
                 const isEditingTts = ref(false);
 
                 // 角色库状态
@@ -1615,6 +1677,13 @@
                 const isEditingTimbre = ref(false);
                 const selectedTimbreId = ref('');
                 const timbreFile = ref(null); // ADDED: To store the selected timbre file object
+
+                // AI 音色生成状态
+                const aiTimbreDescription = ref('');
+                const aiTimbreName = ref('');
+                const isAnalyzingTimbre = ref(false);
+                const timbreAbortController = ref(null);
+                const isGeneratingAIVoice = ref(false);
 
                 // 情绪预设状态
                 const emotionPresets = ref([]);
@@ -1939,6 +2008,20 @@
 
                 const customVoicePromptTemplate = ref(defaultVoicePromptTemplate);
                 const useCustomVoicePrompt = ref(false);
+
+                // AI音色分析专用prompt - 同时生成完整描述和简短描述
+                const defaultTimbrePromptTemplate = `根据用户输入的简单音色描述，生成两个版本：
+1. 完整音色描述：详细描述该音色的特征，用于AI生成音色（50-100字）
+2. 简短匹配描述：30字以内的精炼描述，用于AI自动匹配音色
+
+输出格式（严格按此格式）：
+【完整描述】
+<这里填完整描述，50-100字>
+【简短描述】
+<这里填简短描述，30字以内>
+
+用户输入的简单描述：\${simpleDesc}`;
+                const customTimbrePromptTemplate = ref(defaultTimbrePromptTemplate);
 
                 const defaultQwenVoiceTextTemplate = "我是${charName}，初次见面，请多多指教。正在进行声线校准测试，一，二，三。这段音频将作为我的基准音色，希望能完美演绎接下来的故事，请多关照。";
                 const customQwenVoiceTextTemplate = ref(defaultQwenVoiceTextTemplate);
@@ -2562,6 +2645,13 @@
                     return ttsConfigs.value.find(c => c.id === currentTtsConfigId.value) || null;
                 });
 
+                // Qwen TTS 专用 URL（如果未配置，默认为 IndexTTS URL）
+                const currentQwenUrl = computed(() => {
+                    const cfg = currentTtsConfig.value;
+                    if (!cfg) return '';
+                    return cfg.qwenUrl?.trim() || cfg.baseUrl?.trim() || '';
+                });
+
                 // --- 配置管理逻辑 ---
                 const saveConfigsToLocal = () => {
                     localStorage.setItem('storyforge_configs', JSON.stringify(llmConfigs.value));
@@ -2604,6 +2694,56 @@
                     if (currentConfigId.value === id) currentConfigId.value = '';
                 };
 
+                const enableLlmConfig = (id) => {
+                    if (currentConfigId.value === id) return;
+                    currentConfigId.value = id;
+                    localStorage.setItem('storyforge_current_llm_id', id);
+                };
+
+                const testLlmConfig = async (conf, event) => {
+                    if (!conf.baseUrl || !conf.model) {
+                        alert('请先填写 Base URL 和模型名称');
+                        return;
+                    }
+
+                    const btn = event.target;
+                    const originalText = btn.textContent;
+                    btn.textContent = '测试中...';
+                    btn.disabled = true;
+
+                    try {
+                        let url = conf.baseUrl.trim().replace(/\/+$/, '');
+                        if (!url.endsWith('/chat/completions')) url += '/chat/completions';
+
+                        const body = {
+                            model: conf.model,
+                            messages: [{ role: 'user', content: 'Hi' }],
+                            max_tokens: 5
+                        };
+                        if (conf.params) {
+                            try { body = { ...body, ...JSON.parse(conf.params) }; } catch (e) { }
+                        }
+
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${conf.key}` },
+                            body: JSON.stringify(body)
+                        });
+
+                        if (res.ok) {
+                            alert('✅ 连通性测试成功！');
+                        } else {
+                            const err = await res.text();
+                            alert(`❌ 测试失败 (${res.status}): ${err.substring(0, 100)}`);
+                        }
+                    } catch (e) {
+                        alert(`❌ 连接错误: ${e.message}`);
+                    } finally {
+                        btn.textContent = originalText;
+                        btn.disabled = false;
+                    }
+                };
+
                 const resetForm = () => {
                     form.value = { id: '', name: '', baseUrl: '', model: '', key: '', params: '' };
                     isEditing.value = false;
@@ -2615,11 +2755,17 @@
                 };
 
                 const saveTtsConfig = () => {
-                    if (!ttsForm.value.name || !ttsForm.value.baseUrl) {
-                        return alert('请填写完整信息');
+                    if (!ttsForm.value.name || !ttsForm.value.apiKey) {
+                        return alert('请填写完整信息(名称 + apiKey)');
                     }
 
-                    ttsForm.value.baseUrl = ttsForm.value.baseUrl.trim();
+                    // defaultVoice 枚举校验(防止用户手填不在列表中的值)
+                    const VALID_VOICES = ['mimo_default','冰糖','茉莉','苏打','白桦','Mia','Chloe','Milo','Dean'];
+                    if (!VALID_VOICES.includes(ttsForm.value.defaultVoice)) {
+                        return alert('默认音色必须从下拉列表选择');
+                    }
+
+                    ttsForm.value.apiKey = ttsForm.value.apiKey.trim();
 
                     if (isEditingTts.value) {
                         const index = ttsConfigs.value.findIndex(c => c.id === ttsForm.value.id);
@@ -2644,7 +2790,7 @@
                 };
 
                 const resetTtsForm = () => {
-                    ttsForm.value = { id: '', name: '', baseUrl: '' };
+                    ttsForm.value = { id: '', name: '', apiKey: '', defaultVoice: 'Chloe' };
                     isEditingTts.value = false;
                 };
 
@@ -2712,6 +2858,61 @@
                     }
                 };
 
+                const analyzeTimbreDescription = async () => {
+                    if (isAnalyzingTimbre.value) {
+                        if (timbreAbortController.value) timbreAbortController.value.abort();
+                        return;
+                    }
+
+                    if (!currentConfig.value) return alert('请先在"模型配置"中配置 LLM');
+                    if (!aiTimbreDescription.value.trim()) return alert('请先输入音色描述');
+
+                    isAnalyzingTimbre.value = true;
+                    const controller = new AbortController();
+                    timbreAbortController.value = controller;
+
+                    try {
+                        const promptTemplate = defaultTimbrePromptTemplate;
+                        const promptText = promptTemplate.replace(/\${simpleDesc}/g, aiTimbreDescription.value);
+
+                        const cfg = currentConfig.value;
+                        let url = cfg.baseUrl.trim().replace(/\/+$/, '');
+                        if (!url.endsWith('/chat/completions')) url += '/chat/completions';
+
+                        let body = { model: cfg.model, messages: [{ role: 'user', content: promptText }], stream: false };
+                        if (cfg.params) {
+                            try { body = { ...body, ...JSON.parse(cfg.params) }; } catch (e) { }
+                        }
+
+                        const res = await fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${cfg.key}` },
+                            body: JSON.stringify(body),
+                            signal: controller.signal
+                        });
+
+                        if (!res.ok) throw new Error(`LLM 请求失败: ${res.status}`);
+                        const data = await res.json();
+                        const content = data.choices[0]?.message?.content || '';
+
+                        // 解析完整描述和简短描述
+                        const fullMatch = content.match(/【完整描述】[\s\S]*?<([^>]+)>/);
+                        const shortMatch = content.match(/【简短描述】[\s\S]*?<([^>]+)>/);
+
+                        const fullDesc = fullMatch ? fullMatch[1].trim() : content.trim();
+                        const shortDesc = shortMatch ? shortMatch[1].trim() : fullDesc.substring(0, 30);
+
+                        aiTimbreDescription.value = fullDesc;
+                    } catch (e) {
+                        if (e.name !== 'AbortError') {
+                            alert('分析失败: ' + e.message);
+                        }
+                    } finally {
+                        isAnalyzingTimbre.value = false;
+                        timbreAbortController.value = null;
+                    }
+                };
+
                 const generateQwenVoice = async (char) => {
                     if (char.isGeneratingVoice) {
                         if (char.abortController) char.abortController.abort();
@@ -2733,8 +2934,14 @@
 
                     try {
                         const cfg = currentTtsConfig.value;
-                        let baseUrl = cfg.baseUrl.trim().replace(/\/+$/, '');
-                        if (baseUrl.endsWith('/v1')) baseUrl = baseUrl.slice(0, -3);
+                        const indexUrl = cfg.baseUrl.trim().replace(/\/+$/, '');
+                        const indexBaseUrl = indexUrl.endsWith('/v1') ? indexUrl.slice(0, -3) : indexUrl;
+
+                        // 使用 Qwen3TTS URL (如果未配置则降级到 IndexTTS URL)
+                        let qwenUrl = currentQwenUrl.value;
+                        if (!qwenUrl) qwenUrl = indexBaseUrl;
+                        qwenUrl = qwenUrl.replace(/\/+$/, '');
+                        if (qwenUrl.endsWith('/v1')) qwenUrl = qwenUrl.slice(0, -3);
 
                         const template = useCustomQwenVoiceText.value ? customQwenVoiceTextTemplate.value : defaultQwenVoiceTextTemplate;
                         const textToUse = template.replace(/\${charName}/g, char.name).replace(/\${char\.name}/g, char.name);
@@ -2744,8 +2951,8 @@
                             text: textToUse
                         };
 
-                        // 1. 调用 Qwen3 生成音频
-                        const genRes = await fetch(`${baseUrl}/v1/qwen/design`, {
+                        // 1. 调用 Qwen3 生成音频 (使用 Qwen 服务器)
+                        const genRes = await fetch(`${qwenUrl}/v1/qwen/design`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify(payload),
@@ -2769,12 +2976,12 @@
                         localFileMap.value.set(filename, file);
                         await saveAssetToDB(filename, file);
 
-                        // 3. 上传回 TTS 服务器 (用于 IndexTTS 调用)
+                        // 3. 上传回 IndexTTS 服务器 (用于语音合成)
                         const formData = new FormData();
                         formData.append('audio', file);
                         formData.append('full_path', filename);
 
-                        const upRes = await fetch(`${baseUrl}/v1/upload_audio`, {
+                        const upRes = await fetch(`${indexBaseUrl}/v1/upload_audio`, {
                             method: 'POST',
                             body: formData,
                             signal: controller.signal
@@ -2936,6 +3143,66 @@
                     } catch (e) {
                         console.error("保存音色时出错:", e);
                         alert(`保存音色失败: ${e.message}`);
+                    }
+                };
+
+                // AI 音色生成函数（主面板入口）
+                const generateAIVoiceMain = async () => {
+                    if (!aiTimbreDescription.value) return alert('请填写音色描述');
+                    if (!aiTimbreName.value) return alert('请填写音色名称');
+
+                    let qwenUrl = currentQwenUrl.value;
+                    if (!qwenUrl) {
+                        const cfg = currentTtsConfig.value;
+                        if (!cfg) return alert('请先选择 TTS 服务');
+                        const indexUrl = cfg.baseUrl.trim().replace(/\/+$/, '');
+                        qwenUrl = indexUrl.endsWith('/v1') ? indexUrl.slice(0, -3) : indexUrl;
+                    }
+                    qwenUrl = qwenUrl.replace(/\/+$/, '');
+                    if (qwenUrl.endsWith('/v1')) qwenUrl = qwenUrl.slice(0, -3);
+
+                    const template = useCustomQwenVoiceText.value ? customQwenVoiceTextTemplate.value : defaultQwenVoiceTextTemplate;
+                    const textToUse = template.replace(/\${charName}/g, aiTimbreName.value).replace(/\${char\.name}/g, aiTimbreName.value);
+
+                    const payload = {
+                        voice_description: aiTimbreDescription.value,
+                        text: textToUse
+                    };
+
+                    try {
+                        isGeneratingAIVoice.value = true;
+
+                        const genRes = await fetch(`${qwenUrl}/v1/qwen/design`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (!genRes.ok) {
+                            const err = await genRes.text();
+                            throw new Error(`生成失败: ${err}`);
+                        }
+
+                        const blob = await genRes.blob();
+                        const filename = `ai_${aiTimbreName.value}_${Date.now()}.wav`;
+
+                        // 触发浏览器下载到用户本地
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+
+                        alert(`✅ 音色已生成并下载！\n\n文件名：${filename}\n\n请在下方「保存音色」前，点击「选择文件」上传该音频。`);
+
+                    } catch (e) {
+                        console.error(e);
+                        alert('AI 音色生成失败: ' + e.message);
+                    } finally {
+                        isGeneratingAIVoice.value = false;
                     }
                 };
 
@@ -5875,7 +6142,7 @@ const generateVideo = async () => {
                     handleFileUpload, synthesizeAudio, stopTtsGeneration,
 
                     // Actions
-                    saveConfig, editConfig, deleteConfig, resetForm,
+                    saveConfig, editConfig, deleteConfig, enableLlmConfig, testLlmConfig, resetForm,
                     // TTS Actions
                     ttsForm, isEditingTts,
                     saveTtsConfig, editTtsConfig, deleteTtsConfig, resetTtsForm,
@@ -5887,6 +6154,7 @@ const generateVideo = async () => {
                     // Timbre Actions
                     timbres, timbreForm, isEditingTimbre, selectedTimbreId,
                     saveTimbre, editTimbre, deleteTimbre, resetTimbreForm, handleTimbreFileUpload,
+                    aiTimbreDescription, aiTimbreName, generateAIVoiceMain, analyzeTimbreDescription, isAnalyzingTimbre, isGeneratingAIVoice,
 
                     // Emotion Actions
                     emotionPresets, emotionForm, isEditingEmotion,
