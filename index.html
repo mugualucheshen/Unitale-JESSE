@@ -70,6 +70,11 @@
 
 <body class="p-4 md:p-8">
     <div id="app" class="w-full max-w-[96%] mx-auto p-6 rounded-2xl shadow-2xl">
+        <div v-if="showMigrationNotice"
+            class="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm px-4 py-2 flex items-center justify-between mb-4 rounded-lg">
+            <span>⚠ TTS 配置已升级,请重新添加 MiMo 配置。</span>
+            <button @click="dismissMigrationNotice" class="text-yellow-600 hover:text-yellow-900 font-bold">✕</button>
+        </div>
         <div v-if="previewImageUrl" @click="closeImagePreview"
             class="fixed inset-0 z-[10000] bg-slate-950/78 backdrop-blur-sm flex items-center justify-center p-4">
             <button @click.stop="closeImagePreview"
@@ -224,7 +229,7 @@
                 </div>
             </div>
 
-            <h2 class="text-lg font-bold text-slate-800 border-b pb-2 pt-6">TTS 语音合成配置</h2>
+            <h2 class="text-lg font-bold text-slate-800 border-b pb-2 pt-6">TTS 语音合成配置 (MiMo)</h2>
             <!-- 添加/编辑表单 -->
             <div class="bg-slate-50 p-5 rounded-xl border border-slate-200">
                 <h3 class="text-sm font-bold text-slate-700 mb-4">{{ isEditingTts ? '编辑 TTS 配置' : '添加新 TTS 配置' }}</h3>
@@ -233,19 +238,24 @@
                         <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">配置名称</label>
                         <input v-model="ttsForm.name"
                             class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="例如: IndexTTS 2">
+                            placeholder="例如: 小米 MiMo 个人版">
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">IndexTTS Base URL (语音合成)</label>
-                        <input v-model="ttsForm.baseUrl"
-                            class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="http://127.0.0.1:8300">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">MiMo apiKey</label>
+                        <div class="flex gap-1">
+                            <input :type="showApiKey ? 'text' : 'password'" v-model="ttsForm.apiKey"
+                                class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                placeholder="mimo-...">
+                            <button type="button" @click="showApiKey = !showApiKey"
+                                class="px-2 text-slate-500 hover:text-slate-800">{{ showApiKey ? '🙈' : '👁' }}</button>
+                        </div>
                     </div>
                     <div>
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Qwen3TTS URL (音色生成，可留空)</label>
-                        <input v-model="ttsForm.qwenUrl"
-                            class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                            placeholder="http://127.0.0.1:8080 (如与IndexTTS相同可留空)">
+                        <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">默认预置音色</label>
+                        <select v-model="ttsForm.defaultVoice"
+                            class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                            <option v-for="v in MiMoTTS.VALID_VOICES" :key="v" :value="v">{{ v }}</option>
+                        </select>
                     </div>
                 </div>
                 <div class="flex gap-2">
@@ -254,6 +264,7 @@
                     <button type="button" v-if="isEditingTts" @click="resetTtsForm"
                         class="px-4 py-2 bg-slate-200 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-300 transition-all">取消</button>
                 </div>
+                <p class="text-[10px] text-slate-400 mt-2">注:网络异常时可能自动重试 1 次,可能产生额外费用。</p>
             </div>
 
             <!-- 配置列表 -->
@@ -262,10 +273,16 @@
                     class="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-xl hover:shadow-sm transition-shadow">
                     <div>
                         <div class="font-bold text-slate-800 text-sm">{{ conf.name }}</div>
-                        <div class="text-xs text-slate-400 mt-1">IndexTTS: {{ conf.baseUrl }}</div>
-                        <div v-if="conf.qwenUrl" class="text-xs text-slate-400">Qwen3TTS: {{ conf.qwenUrl }}</div>
+                        <div class="text-xs text-slate-400 mt-1">MiMo: ****{{ (conf.apiKey || '').slice(-4) }}</div>
+                        <div class="text-xs text-slate-400" v-if="conf.defaultVoice">默认音色: {{ conf.defaultVoice }}</div>
                     </div>
-                    <div class="flex gap-2">
+                    <div class="flex gap-2 items-center">
+                        <button @click="testTtsConnection(conf)" type="button" :disabled="testingTtsId === conf.id"
+                            class="text-xs text-green-600 hover:underline font-medium disabled:opacity-50">
+                            {{ testingTtsId === conf.id ? '测试中...' : '测试连接' }}
+                            <span v-if="ttsTestResults[conf.id]?.status === 'ok'" class="text-green-600">✓ {{ ttsTestResults[conf.id].voice }}</span>
+                            <span v-if="ttsTestResults[conf.id]?.status === 'fail'" class="text-red-500">✗</span>
+                        </button>
                         <button @click="editTtsConfig(conf)"
                             class="text-xs text-blue-600 hover:underline font-medium">编辑</button>
                         <button @click="deleteTtsConfig(conf.id)"
@@ -273,7 +290,7 @@
                     </div>
                 </div>
                 <div v-if="ttsConfigs.length === 0" class="text-center py-8 text-slate-400 text-sm">
-                    暂无 TTS 配置，请在上方添加
+                    暂无 TTS 配置,请在上方添加
                 </div>
             </div>
         </div>
@@ -1404,9 +1421,9 @@
                 <div class="flex justify-between items-center mb-2">
                     <h4 class="text-sm font-bold text-slate-600">3. AI 音色生成参考音频 文本模板</h4>
                     <div class="space-x-2">
-                        <button @click="saveQwenVoiceText"
+                        <button @click="saveAIVoiceText"
                             class="px-3 py-1.5 bg-pink-100 text-pink-700 rounded-lg text-xs font-bold hover:bg-pink-200 transition-all">保存生成文本</button>
-                        <button @click="resetQwenVoiceText"
+                        <button @click="resetAIVoiceText"
                             class="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-all">恢复默认</button>
                     </div>
                 </div>
@@ -1667,6 +1684,45 @@
                 const ttsConfigs = ref([]);
                 const ttsForm = ref({ id: '', name: '', apiKey: '', defaultVoice: 'Chloe' });
                 const isEditingTts = ref(false);
+                const showApiKey = ref(false);
+                const testingTtsId = ref(null);
+                // ttsTestResults: { [confId]: { status: 'ok'|'fail', voice?: string } }
+                const ttsTestResults = ref({});
+
+                // 迁移后用户提示(同步初始化,避免响应式时序问题)
+                const showMigrationNotice = ref(
+                    localStorage.getItem('storyforge_tts_migration_notice_dismissed_v1') === null
+                    && localStorage.getItem('storyforge_tts_schema_version') === '1'
+                );
+                const dismissMigrationNotice = () => {
+                    showMigrationNotice.value = false;
+                    localStorage.setItem('storyforge_tts_migration_notice_dismissed_v1', '1');
+                };
+
+                const testTtsConnection = async (conf) => {
+                    if (!conf.apiKey) {
+                        ttsTestResults.value = {...ttsTestResults.value, [conf.id]: {status: 'fail'}};
+                        return alert('请先填写 apiKey');
+                    }
+                    testingTtsId.value = conf.id;
+                    ttsTestResults.value = {...ttsTestResults.value, [conf.id]: null};
+                    const controller = new AbortController();
+                    try {
+                        const payload = MiMoTTS.buildSynthesizePayload('测试', conf.defaultVoice, '');
+                        const blob = await MiMoTTS.synthesize(conf.apiKey, payload, controller.signal);
+                        if (blob.size > 0) {
+                            ttsTestResults.value = {...ttsTestResults.value, [conf.id]: {status: 'ok', voice: conf.defaultVoice}};
+                        } else {
+                            ttsTestResults.value = {...ttsTestResults.value, [conf.id]: {status: 'fail'}};
+                        }
+                    } catch (e) {
+                        if (e.name === 'AbortError') return;  // 用户主动取消
+                        ttsTestResults.value = {...ttsTestResults.value, [conf.id]: {status: 'fail'}};
+                        alert('测试失败: ' + e.message);
+                    } finally {
+                        testingTtsId.value = null;
+                    }
+                };
 
                 // 角色库状态
                 const characters = ref([]);
@@ -1884,7 +1940,7 @@
 
                 // Prompt Template
                 const defaultPromptTemplate = `你的任务是将给定小说内容拆分为台词和旁白，并自动识别每一句台词的角色和情绪。
-**注意：生成的结果将直接用于 IndexTTS 语音合成系统，请严格从指定的情绪列表中选择，不要自行生成情绪描述文本。**
+**注意：生成的结果将直接用于 MiMo 语音合成系统，请严格从指定的情绪列表中选择，不要自行生成情绪描述文本。**
 
 \${sfxSection}
 
@@ -3004,64 +3060,8 @@
                 };
 
                 // --- 音色库管理逻辑 ---
-                const syncTimbresWithServer = async () => {
-                    // 尝试获取可用的 TTS 配置
-                    let cfg = currentTtsConfig.value;
-                    if (!cfg && ttsConfigs.value.length > 0) {
-                        // 如果当前未选中，默认使用第一个
-                        currentTtsConfigId.value = ttsConfigs.value[0].id;
-                        cfg = ttsConfigs.value[0];
-                    }
-
-                    if (!cfg) {
-                        console.warn("未找到可用的 TTS 配置，无法同步音色文件。");
-                        return;
-                    }
-
-                    let baseUrl = cfg.baseUrl.trim().replace(/\/+$/, '');
-                    if (baseUrl.endsWith('/v1')) baseUrl = baseUrl.slice(0, -3);
-                    console.log(`正在同步音色文件到服务器: ${baseUrl}`);
-
-                    for (const t of timbres.value) {
-                        if (!t.refPath) continue;
-
-                        // 检查内存中是否有该文件
-                        const file = localFileMap.value.get(t.refPath);
-                        if (!file) {
-                            console.warn(`音色文件未在内存中找到 (可能未导入或丢失): ${t.refPath}`);
-                            continue;
-                        }
-
-                        try {
-                            // 1. 检查服务器是否存在
-                            const checkUrl = `${baseUrl}/v1/check/audio?file_name=${encodeURIComponent(t.refPath)}`;
-                            const checkRes = await fetch(checkUrl);
-                            let exists = false;
-                            if (checkRes.ok) {
-                                const checkData = await checkRes.json();
-                                exists = checkData.exists;
-                            }
-
-                            // 2. 如果不存在，则上传
-                            if (!exists) {
-                                console.log(`正在上传缺失的音色文件: ${t.name} (${t.refPath})`);
-                                const formData = new FormData();
-                                formData.append('audio', file);
-                                formData.append('full_path', t.refPath);
-
-                                await fetch(`${baseUrl}/v1/upload_audio`, {
-                                    method: 'POST',
-                                    body: formData,
-                                });
-                            } else {
-                                console.log(`音色文件已存在: ${t.name}`);
-                            }
-                        } catch (e) {
-                            console.error(`同步音色 ${t.name} 失败:`, e);
-                        }
-                    }
-                    console.log("音色同步完成。");
-                };
+                // syncTimbresWithServer 已废弃:MiMo 走 base64 inline,不需要服务端存储音色文件
+                // 原函数依赖 cfg.baseUrl,迁移后已无意义,完整删除
 
                 const saveTimbre = async () => {
                     if (!timbreForm.value.name || !timbreForm.value.refPath) {
@@ -3432,61 +3432,57 @@
                             throw new Error(`角色 "${line.role}" 未绑定音色文件路径。\n\n请在左侧的角色列表中为该角色选择一个音色文件，或手动输入路径。`);
                         }
 
-                        let finalVector = [0, 0, 0, 0, 0, 0, 0, 0];
+                        const cfg = currentTtsConfig.value;
+                        if (!cfg.apiKey) throw new Error('当前 TTS 配置缺少 apiKey');
+
+                        // 1. 情绪 vector → 自然语言风格描述(MiMo 用文本控制情绪)
                         const preset = emotionPresets.value.find(e => e.name === line.emotion);
+                        let styleDesc = '用自然的语气说';
                         if (preset && preset.vector) {
-                            if (isSystemEmotion(line.emotion)) {
-                                const intensityVal = intensityMap[line.intensity] || 0.5;
-                                finalVector = preset.vector.map(v => v * intensityVal);
-                            } else {
-                                finalVector = preset.vector;
+                            // 找最大情绪维度
+                            const emotionNames = ['高兴', '生气', '伤心', '害怕', '厌恶', '低落', '惊喜', '平静'];
+                            let maxIdx = 0, maxVal = 0;
+                            for (let i = 0; i < preset.vector.length; i++) {
+                                if (preset.vector[i] > maxVal) { maxVal = preset.vector[i]; maxIdx = i; }
+                            }
+                            // 强度因子
+                            const intensity = isSystemEmotion(line.emotion)
+                                ? (intensityMap[line.intensity] || 0.5)
+                                : 1.0;
+                            if (maxVal * intensity > 0.3) {
+                                const intensityWord = intensity >= 0.75 ? '强烈' : intensity >= 0.4 ? '明显' : '轻微';
+                                styleDesc = `用${intensityWord}的${emotionNames[maxIdx]}语气说`;
                             }
                         }
 
-                        const payload = {
-                            text: line.text,
-                            audio_path: char.voiceFile,
-                            emo_vector: finalVector
-                        };
-
-                        const cfg = currentTtsConfig.value;
-                        let baseUrl = cfg.baseUrl.trim().replace(/\/+$/, '');
-                        if (baseUrl.endsWith('/v1')) baseUrl = baseUrl.slice(0, -3);
-
-                        const voiceFile = localFileMap.value.get(char.voiceFile);
-                        if (voiceFile) {
+                        // 2. 音色库查找 + 预检
+                        const timbre = timbres.value.find(t => t.refPath === char.voiceFile);
+                        let blob;
+                        if (timbre) {
                             try {
-                                const checkUrl = `${baseUrl}/v1/check/audio?file_name=${encodeURIComponent(char.voiceFile)}`;
-                                const checkRes = await fetch(checkUrl, { signal: internalSignal });
-                                let exists = false;
-                                if (checkRes.ok) {
-                                    exists = (await checkRes.json()).exists;
-                                }
-                                if (!exists) {
-                                    const formData = new FormData();
-                                    formData.append('audio', voiceFile, char.voiceFile);
-                                    formData.append('full_path', char.voiceFile);
-                                    await fetch(`${baseUrl}/v1/upload_audio`, { method: 'POST', body: formData, signal: internalSignal });
+                                const arrayBuffer = await loadAssetFromDB(timbre.refPath);
+                                if (!arrayBuffer) throw new Error('IndexedDB 中找不到该音色');
+                                if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
+                                    console.warn(`[TTS] 台词音色 > 10MB,降级到预置音色`);
+                                    const payload = MiMoTTS.buildSynthesizePayload(line.text, cfg.defaultVoice, styleDesc);
+                                    blob = await MiMoTTS.synthesize(cfg.apiKey, payload, internalSignal);
+                                } else {
+                                    const base64 = arrayBufferToBase64(arrayBuffer);
+                                    const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
+                                    const payload = MiMoTTS.buildVoiceClonePayload(line.text, base64, mime);
+                                    blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, internalSignal);
                                 }
                             } catch (e) {
-                                if (e.name !== 'AbortError') console.warn('自动上传音色文件失败:', e);
-                                else throw e; // Propagate abort
+                                if (e.name === 'AbortError') throw e;
+                                console.warn('[TTS] 音色加载失败,降级到预置音色:', e.message);
+                                const payload = MiMoTTS.buildSynthesizePayload(line.text, cfg.defaultVoice, styleDesc);
+                                blob = await MiMoTTS.synthesize(cfg.apiKey, payload, internalSignal);
                             }
+                        } else {
+                            const payload = MiMoTTS.buildSynthesizePayload(line.text, cfg.defaultVoice, styleDesc);
+                            blob = await MiMoTTS.synthesize(cfg.apiKey, payload, internalSignal);
                         }
 
-                        const synthRes = await fetch(`${baseUrl}/v2/synthesize`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload),
-                            signal: internalSignal
-                        });
-
-                        if (!synthRes.ok) {
-                            const errText = await synthRes.text();
-                            throw new Error(`语音合成失败: ${errText}`);
-                        }
-
-                        const blob = await synthRes.blob();
                         await saveAssetToDB(`line_audio_${line.id}`, blob);
                         const audioUrl = URL.createObjectURL(blob);
                         line.audioUrl = audioUrl;
@@ -6139,13 +6135,13 @@ const generateVideo = async () => {
                     }
                 };
 
-                const saveQwenVoiceText = () => {
+                const saveAIVoiceText = () => {
                     localStorage.setItem('storyforge_ai_voice_text_template', customAIVoiceTextTemplate.value);
                     localStorage.setItem('storyforge_use_custom_ai_voice_text', JSON.stringify(useCustomAIVoiceText.value));
                     alert('AI 生成文本设置已保存');
                 };
 
-                const resetQwenVoiceText = () => {
+                const resetAIVoiceText = () => {
                     if (confirm('确定要恢复默认文本吗？')) {
                         customAIVoiceTextTemplate.value = defaultAIVoiceTextTemplate;
                     }
@@ -6177,6 +6173,8 @@ const generateVideo = async () => {
 
                     // TTS Actions
                     handleFileUpload, synthesizeAudio, stopTtsGeneration,
+                    showApiKey, testingTtsId, ttsTestResults, testTtsConnection,
+                    showMigrationNotice, dismissMigrationNotice, MiMoTTS,
 
                     // Actions
                     saveConfig, editConfig, deleteConfig, enableLlmConfig, testLlmConfig, resetForm,
@@ -6239,7 +6237,7 @@ const generateVideo = async () => {
 
                     customPromptTemplate, useCustomPrompt, savePrompt, resetPrompt,
                     customVoicePromptTemplate, useCustomVoicePrompt, saveVoicePrompt, resetVoicePrompt,
-                    customQwenVoiceTextTemplate, useCustomQwenVoiceText, saveQwenVoiceText, resetQwenVoiceText,
+                    customAIVoiceTextTemplate, useCustomAIVoiceText, saveAIVoiceText, resetAIVoiceText,
                     generateVideo,
                 };
             }
