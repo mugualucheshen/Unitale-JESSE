@@ -309,7 +309,7 @@
                             <button type="button" @click="generateAIVoiceMain"
                                 :disabled="isGeneratingAIVoice"
                                 :class="['px-5 py-2 border rounded-lg text-xs font-bold transition-all flex items-center gap-1', isGeneratingAIVoice ? 'bg-slate-400 text-white cursor-not-allowed' : 'bg-indigo-600 text-white hover:bg-indigo-700']">
-                                <span v-if="isGeneratingAIVoice" class="animate-spin">⏳</span>{{ isGeneratingAIVoice ? '正在生成中...' : '🎨 Qwen 生成音色' }}
+                                <span v-if="isGeneratingAIVoice" class="animate-spin">⏳</span>{{ isGeneratingAIVoice ? '正在生成中...' : '🎨 AI 生成音色' }}
                             </button>
                         </div>
                         <p class="text-[10px] text-slate-400">提示：生成后音频会自动下载到浏览器默认下载目录。</p>
@@ -840,9 +840,9 @@
                                         :class="['flex-1 px-2 py-1.5 border rounded text-[10px] font-bold transition-colors flex justify-center items-center gap-1', char.isAnalyzing ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100' : 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100']">
                                         <span v-if="char.isAnalyzing" class="animate-spin">⏳</span>{{ char.isAnalyzing ? '停止分析' : 'AI分析音色' }}
                                     </button>
-                                    <button @click="generateQwenVoice(char)"
+                                    <button @click="generateAIVoice(char)"
                                         :class="['flex-1 px-2 py-1.5 border rounded text-[10px] font-bold transition-colors flex justify-center items-center gap-1', char.isGeneratingVoice ? 'bg-red-50 text-red-600 border-red-100 hover:bg-red-100' : 'bg-pink-50 text-pink-600 border-pink-100 hover:bg-pink-100']">
-                                        <span v-if="char.isGeneratingVoice" class="animate-spin">⏳</span>{{ char.isGeneratingVoice ? '停止生成' : 'Qwen生成音色' }}
+                                        <span v-if="char.isGeneratingVoice" class="animate-spin">⏳</span>{{ char.isGeneratingVoice ? '停止生成' : 'AI 生成音色' }}
                                     </button>
                                 </div>
                             </div>
@@ -1402,7 +1402,7 @@
                 <hr class="my-6 border-slate-200">
 
                 <div class="flex justify-between items-center mb-2">
-                    <h4 class="text-sm font-bold text-slate-600">3. Qwen 音色生成参考音频 文本模板</h4>
+                    <h4 class="text-sm font-bold text-slate-600">3. AI 音色生成参考音频 文本模板</h4>
                     <div class="space-x-2">
                         <button @click="saveQwenVoiceText"
                             class="px-3 py-1.5 bg-pink-100 text-pink-700 rounded-lg text-xs font-bold hover:bg-pink-200 transition-all">保存生成文本</button>
@@ -1412,7 +1412,7 @@
                 </div>
                 <div class="flex items-center gap-2 mb-4 bg-white p-3 rounded-lg border border-slate-200">
                     <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" v-model="useCustomQwenVoiceText" class="sr-only peer">
+                        <input type="checkbox" v-model="useCustomAIVoiceText" class="sr-only peer">
                         <div
                             class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
                         </div>
@@ -1420,8 +1420,8 @@
                     </label>
                     <span class="text-xs text-slate-400 ml-2">(关闭时将使用系统内置的默认文本)</span>
                 </div>
-                <textarea v-model="customQwenVoiceTextTemplate" :disabled="!useCustomQwenVoiceText"
-                    :class="['w-full h-24 p-3 text-xs font-mono border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-3', !useCustomQwenVoiceText ? 'bg-slate-100 text-slate-400' : 'bg-white text-slate-700']"
+                <textarea v-model="customAIVoiceTextTemplate" :disabled="!useCustomAIVoiceText"
+                    :class="['w-full h-24 p-3 text-xs font-mono border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none mb-3', !useCustomAIVoiceText ? 'bg-slate-100 text-slate-400' : 'bg-white text-slate-700']"
                     spellcheck="false"></textarea>
                 <div class="mt-2 text-xs text-slate-500">
                     <span class="font-bold">可用变量:</span> ${charName}
@@ -2023,9 +2023,9 @@
 用户输入的简单描述：\${simpleDesc}`;
                 const customTimbrePromptTemplate = ref(defaultTimbrePromptTemplate);
 
-                const defaultQwenVoiceTextTemplate = "我是${charName}，初次见面，请多多指教。正在进行声线校准测试，一，二，三。这段音频将作为我的基准音色，希望能完美演绎接下来的故事，请多关照。";
-                const customQwenVoiceTextTemplate = ref(defaultQwenVoiceTextTemplate);
-                const useCustomQwenVoiceText = ref(false);
+                const defaultAIVoiceTextTemplate = "我是${charName}，初次见面，请多多指教。正在进行声线校准测试，一，二，三。这段音频将作为我的基准音色，希望能完美演绎接下来的故事，请多关照。";
+                const customAIVoiceTextTemplate = ref(defaultAIVoiceTextTemplate);
+                const useCustomAIVoiceText = ref(false);
 
                 // --- 音频引擎与缓存 (Audio Engine & Cache) ---
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -2500,11 +2500,11 @@
                      const savedUseCustomVoice = localStorage.getItem('storyforge_use_custom_voice_prompt');
                      if (savedUseCustomVoice) useCustomVoicePrompt.value = JSON.parse(savedUseCustomVoice);
  
-                     const savedQwenText = localStorage.getItem('storyforge_qwen_voice_text_template');
-                     if (savedQwenText) customQwenVoiceTextTemplate.value = savedQwenText;
- 
-                     const savedUseCustomQwen = localStorage.getItem('storyforge_use_custom_qwen_voice_text');
-                     if (savedUseCustomQwen) useCustomQwenVoiceText.value = JSON.parse(savedUseCustomQwen);
+                     const savedAIText = localStorage.getItem('storyforge_ai_voice_text_template');
+                     if (savedAIText) customAIVoiceTextTemplate.value = savedAIText;
+
+                     const savedUseCustomAI = localStorage.getItem('storyforge_use_custom_ai_voice_text');
+                     if (savedUseCustomAI) useCustomAIVoiceText.value = JSON.parse(savedUseCustomAI);
 
                      const savedBgImageCount = localStorage.getItem('unitale_bgImageCount');
                      if (savedBgImageCount !== null) {
@@ -2646,12 +2646,6 @@
                 });
 
                 // Qwen TTS 专用 URL（如果未配置，默认为 IndexTTS URL）
-                const currentQwenUrl = computed(() => {
-                    const cfg = currentTtsConfig.value;
-                    if (!cfg) return '';
-                    return cfg.qwenUrl?.trim() || cfg.baseUrl?.trim() || '';
-                });
-
                 // --- 配置管理逻辑 ---
                 const saveConfigsToLocal = () => {
                     localStorage.setItem('storyforge_configs', JSON.stringify(llmConfigs.value));
@@ -2913,7 +2907,7 @@
                     }
                 };
 
-                const generateQwenVoice = async (char) => {
+                const generateAIVoice = async (char) => {
                     if (char.isGeneratingVoice) {
                         if (char.abortController) char.abortController.abort();
                         return;
@@ -2934,82 +2928,44 @@
 
                     try {
                         const cfg = currentTtsConfig.value;
-                        const indexUrl = cfg.baseUrl.trim().replace(/\/+$/, '');
-                        const indexBaseUrl = indexUrl.endsWith('/v1') ? indexUrl.slice(0, -3) : indexUrl;
+                        if (!cfg.apiKey) throw new Error('当前 TTS 配置缺少 apiKey');
 
-                        // 使用 Qwen3TTS URL (如果未配置则降级到 IndexTTS URL)
-                        let qwenUrl = currentQwenUrl.value;
-                        if (!qwenUrl) qwenUrl = indexBaseUrl;
-                        qwenUrl = qwenUrl.replace(/\/+$/, '');
-                        if (qwenUrl.endsWith('/v1')) qwenUrl = qwenUrl.slice(0, -3);
-
-                        const template = useCustomQwenVoiceText.value ? customQwenVoiceTextTemplate.value : defaultQwenVoiceTextTemplate;
+                        const template = useCustomAIVoiceText.value ? customAIVoiceTextTemplate.value : defaultAIVoiceTextTemplate;
                         const textToUse = template.replace(/\${charName}/g, char.name).replace(/\${char\.name}/g, char.name);
 
-                        const payload = {
-                            voice_description: char.voiceDescription,
-                            text: textToUse
-                        };
+                        // 1. 调 MiMo voicedesign
+                        const payload = MiMoTTS.buildVoiceDesignPayload(char.voiceDescription, textToUse, true);
+                        const blob = await MiMoTTS.designVoice(cfg.apiKey, payload, controller.signal);
 
-                        // 1. 调用 Qwen3 生成音频 (使用 Qwen 服务器)
-                        const genRes = await fetch(`${qwenUrl}/v1/qwen/design`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload),
-                            signal: controller.signal,
-                            cache: 'no-store'
-                        });
-
-                        // Don't clear timeout here, as upload might still need it
-                        // clearTimeout(timeoutId); 
-
-                        if (!genRes.ok) {
-                            const err = await genRes.text();
-                            throw new Error(`生成失败: ${err}`);
-                        }
-
-                        const blob = await genRes.blob();
-                        const filename = `qwen_${char.name}_${Date.now()}.wav`;
+                        const filename = `design_${char.name}_${Date.now()}.wav`;
                         const file = new File([blob], filename, { type: 'audio/wav' });
 
-                        // 2. 保存到本地资源管理
+                        // 2. 保存到本地资源管理 + IndexedDB
                         localFileMap.value.set(filename, file);
                         await saveAssetToDB(filename, file);
 
-                        // 3. 上传回 IndexTTS 服务器 (用于语音合成)
-                        const formData = new FormData();
-                        formData.append('audio', file);
-                        formData.append('full_path', filename);
-
-                        const upRes = await fetch(`${indexBaseUrl}/v1/upload_audio`, {
-                            method: 'POST',
-                            body: formData,
-                            signal: controller.signal
-                        });
-                        if (!upRes.ok) throw new Error('上传参考音频失败');
-
-                        // 4. 添加或更新音色库
+                        // 3. 添加或更新音色库
                         const timbreName = `${char.name}_AI`;
                         const existingIndex = timbres.value.findIndex(t => t.name === timbreName);
 
                         if (existingIndex !== -1) {
-                            // 更新已有音色
                             timbres.value[existingIndex].description = char.voiceDescription;
                             timbres.value[existingIndex].refPath = filename;
+                            timbres.value[existingIndex].source = 'design';
                         } else {
-                            // 新增音色
                             timbres.value.push({
                                 id: Date.now().toString(),
                                 name: timbreName,
                                 description: char.voiceDescription,
-                                refPath: filename
+                                refPath: filename,
+                                source: 'design'
                             });
                         }
 
-                        // 5. 选中该音色
+                        // 4. 选中该音色
                         char.voiceFile = filename;
 
-                        // 6. 自动保存
+                        // 5. 自动保存
                         triggerAutoSave();
 
                     } catch (e) {
@@ -3024,7 +2980,7 @@
                                 msg = '操作已手动取消。';
                             }
                         } else if (msg === 'Failed to fetch') {
-                            msg = `连接异常中断 (耗时 ${Math.round(duration)}秒)。\n这不是前端代码设定的超时(30分钟)，而是您的浏览器或网络环境(如代理/Nginx)强制断开了连接。\n\n由于无法修改后端保存文件，此音频已丢失。\n建议：尝试精简音色描述以减少生成时间。`;
+                            msg = `连接异常中断 (耗时 ${Math.round(duration)}秒)。请检查网络或后端。`;
                         }
                         alert('生成音色失败: ' + msg);
                     } finally {
@@ -3151,40 +3107,20 @@
                     if (!aiTimbreDescription.value) return alert('请填写音色描述');
                     if (!aiTimbreName.value) return alert('请填写音色名称');
 
-                    let qwenUrl = currentQwenUrl.value;
-                    if (!qwenUrl) {
-                        const cfg = currentTtsConfig.value;
-                        if (!cfg) return alert('请先选择 TTS 服务');
-                        const indexUrl = cfg.baseUrl.trim().replace(/\/+$/, '');
-                        qwenUrl = indexUrl.endsWith('/v1') ? indexUrl.slice(0, -3) : indexUrl;
-                    }
-                    qwenUrl = qwenUrl.replace(/\/+$/, '');
-                    if (qwenUrl.endsWith('/v1')) qwenUrl = qwenUrl.slice(0, -3);
+                    const cfg = currentTtsConfig.value;
+                    if (!cfg) return alert('请先选择 TTS 服务');
+                    if (!cfg.apiKey) return alert('当前 TTS 配置缺少 apiKey');
 
-                    const template = useCustomQwenVoiceText.value ? customQwenVoiceTextTemplate.value : defaultQwenVoiceTextTemplate;
+                    const template = useCustomAIVoiceText.value ? customAIVoiceTextTemplate.value : defaultAIVoiceTextTemplate;
                     const textToUse = template.replace(/\${charName}/g, aiTimbreName.value).replace(/\${char\.name}/g, aiTimbreName.value);
-
-                    const payload = {
-                        voice_description: aiTimbreDescription.value,
-                        text: textToUse
-                    };
 
                     try {
                         isGeneratingAIVoice.value = true;
 
-                        const genRes = await fetch(`${qwenUrl}/v1/qwen/design`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
+                        const payload = MiMoTTS.buildVoiceDesignPayload(aiTimbreDescription.value, textToUse, true);
+                        const blob = await MiMoTTS.designVoice(cfg.apiKey, payload);
 
-                        if (!genRes.ok) {
-                            const err = await genRes.text();
-                            throw new Error(`生成失败: ${err}`);
-                        }
-
-                        const blob = await genRes.blob();
-                        const filename = `ai_${aiTimbreName.value}_${Date.now()}.wav`;
+                        const filename = `design_${aiTimbreName.value}_${Date.now()}.wav`;
 
                         // 触发浏览器下载到用户本地
                         const url = URL.createObjectURL(blob);
@@ -5975,7 +5911,120 @@ const generateVideo = async () => {
                     }
                 };
 
-                // --- TTS 逻辑 (SonicVale 协议) ---
+                // --- TTS 逻辑 (MiMo 协议) ---
+
+                // ArrayBuffer → base64 辅助函数
+                const arrayBufferToBase64 = (buffer) => {
+                    const bytes = new Uint8Array(buffer);
+                    let binary = '';
+                    const chunkSize = 8192;
+                    for (let i = 0; i < bytes.length; i += chunkSize) {
+                        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+                    }
+                    return btoa(binary);
+                };
+
+                const MiMoTTS = {
+                  ENDPOINT: 'https://api.xiaomimimo.com/v1/chat/completions',
+                  RETRYABLE_STATUS: new Set([502, 503, 504]),
+                  POST_RETRY_ENABLED: true,
+                  VALID_VOICES: ['mimo_default','冰糖','茉莉','苏打','白桦','Mia','Chloe','Milo','Dean'],
+
+                  buildSynthesizePayload(text, voice, styleDesc) {
+                    return {
+                      model: 'mimo-v2.5-tts',
+                      messages: [
+                        { role: 'user', content: styleDesc || '用自然的语气说' },
+                        { role: 'assistant', content: text }
+                      ],
+                      audio: { format: 'wav', voice },
+                      stream: false
+                    };
+                  },
+
+                  buildVoiceDesignPayload(description, text, optimizeText = true) {
+                    return {
+                      model: 'mimo-v2.5-tts-voicedesign',
+                      messages: [
+                        { role: 'user', content: description },
+                        { role: 'assistant', content: text }
+                      ],
+                      audio: { format: 'wav', optimize_text_preview: optimizeText },
+                      stream: false
+                    };
+                  },
+
+                  buildVoiceClonePayload(text, base64Audio, mime) {
+                    return {
+                      model: 'mimo-v2.5-tts-voiceclone',
+                      messages: [
+                        { role: 'user', content: '' },
+                        { role: 'assistant', content: text }
+                      ],
+                      audio: { format: 'wav', voice: `data:${mime};base64,${base64Audio}` },
+                      stream: false
+                    };
+                  },
+
+                  async withRetry(fn) {
+                    const sleep = ms => new Promise(r => setTimeout(r, ms));
+                    let response = await fn();
+                    if (response.ok) return response;
+                    if (MiMoTTS.POST_RETRY_ENABLED && MiMoTTS.RETRYABLE_STATUS.has(response.status)) {
+                      await sleep(1000);
+                      response = await fn();
+                    }
+                    return response;
+                  },
+
+                  parseAudioResponse(json) {
+                    if (!json?.choices?.[0]?.message?.audio?.data) {
+                      throw new Error('MiMo 响应格式错误:缺少 audio.data');
+                    }
+                    const base64 = json.choices[0].message.audio.data;
+                    const binary = atob(base64);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    return new Blob([bytes], {type: 'audio/wav'});
+                  },
+
+                  async _request(apiKey, payload, signal) {
+                    try {
+                      const res = await MiMoTTS.withRetry(() => fetch(MiMoTTS.ENDPOINT, {
+                        method: 'POST',
+                        headers: { 'api-key': apiKey, 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        signal
+                      }));
+                      if (res.status === 401 || res.status === 403) {
+                        throw new Error('MiMo 鉴权失败,请检查 apiKey');
+                      }
+                      if (res.status === 429) {
+                        throw new Error('MiMo 请求过于频繁,请稍后重试');
+                      }
+                      if (!res.ok) {
+                        const text = await res.text().catch(() => '');
+                        throw new Error(`MiMo 请求失败 ${res.status}: ${text.substring(0, 200)}`);
+                      }
+                      const json = await res.json();
+                      return MiMoTTS.parseAudioResponse(json);
+                    } catch (e) {
+                      if (e.name === 'AbortError') throw e;
+                      if (e.message?.startsWith('MiMo ')) throw e;
+                      throw new Error('MiMo 网络错误: ' + e.message);
+                    }
+                  },
+
+                  async synthesize(apiKey, payload, signal) {
+                    return MiMoTTS._request(apiKey, payload, signal);
+                  },
+                  async designVoice(apiKey, payload, signal) {
+                    return MiMoTTS._request(apiKey, payload, signal);
+                  },
+                  async cloneVoice(apiKey, payload, signal) {
+                    return MiMoTTS._request(apiKey, payload, signal);
+                  },
+                };
 
                 const handleFileUpload = (event) => {
                     const file = event.target.files[0];
@@ -6008,59 +6057,47 @@ const generateVideo = async () => {
                     ttsAbortController.value = new AbortController();
 
                     const cfg = currentTtsConfig.value;
-                    let baseUrl = cfg.baseUrl.trim().replace(/\/+$/, '');
-                    if (baseUrl.endsWith('/v1')) baseUrl = baseUrl.slice(0, -3);
+                    if (!cfg.apiKey) {
+                        ttsLoading.value = false;
+                        return alert('当前 TTS 配置缺少 apiKey');
+                    }
 
                     try {
-                        // 1. 检查音频是否存在
-                        const checkUrl = `${baseUrl}/v1/check/audio?file_name=${encodeURIComponent(ttsRefPath.value)}`;
-                        const checkRes = await fetch(checkUrl, { signal: ttsAbortController.value.signal });
-                        if (!checkRes.ok) throw new Error(`Check failed: ${checkRes.status}`);
-                        const checkData = await checkRes.json();
-
-                        // 2. 上传逻辑：如果用户选择了文件，强制上传（覆盖）；否则检查服务端是否存在
-                        // 修改：即使服务端存在，只要用户选了新文件，就强制上传，防止文件内容不一致或服务端文件损坏
-                        if (ttsRefFile.value) {
-                            const formData = new FormData();
-                            formData.append('audio', ttsRefFile.value);
-                            formData.append('full_path', ttsRefPath.value);
-
-                            const uploadRes = await fetch(`${baseUrl}/v1/upload_audio`, {
-                                method: 'POST',
-                                body: formData,
-                                signal: ttsAbortController.value.signal
-                            });
-
-                            if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
-                        } else if (!checkData.exists) {
-                            throw new Error(`服务端未找到音频 "${ttsRefPath.value}"，且未选择本地文件进行上传。`);
+                        // 1. 查找音色库中当前 timbre
+                        let timbre = timbres.value.find(t => t.refPath === ttsRefPath.value);
+                        if (timbre && !timbre.source) {
+                            // 懒补 source 字段(老音色库无此字段)。下次 triggerAutoSave 自动写回 localStorage
+                            timbre.source = 'design';
                         }
 
-                        // 3. 合成语音
-                        const synthPayload = {
-                            text: textToSpeak,
-                            audio_path: ttsRefPath.value,
-                            emo_text: ttsEmoText.value || '中立'
-                        };
-
-                        const synthRes = await fetch(`${baseUrl}/v2/synthesize`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify(synthPayload),
-                            signal: ttsAbortController.value.signal
-                        });
-
-                        if (!synthRes.ok) {
-                            const errText = await synthRes.text();
-                            throw new Error(`Synthesis failed: ${errText}`);
+                        let blob;
+                        if (timbre) {
+                            // 2a. 音色库路径:读 wav → base64 → inline 传 MiMo cloneVoice
+                            try {
+                                const arrayBuffer = await loadAssetFromDB(timbre.refPath);
+                                if (!arrayBuffer) throw new Error('IndexedDB 中找不到该音色');
+                                if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
+                                    console.warn(`[TTS] 参考音频 > 10MB (${arrayBuffer.byteLength}),降级到预置音色合成`);
+                                    timbre = null;
+                                } else {
+                                    const base64 = arrayBufferToBase64(arrayBuffer);
+                                    const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
+                                    const payload = MiMoTTS.buildVoiceClonePayload(textToSpeak, base64, mime);
+                                    blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, ttsAbortController.value.signal);
+                                }
+                            } catch (e) {
+                                console.warn('[TTS] 音色加载失败,降级到预置音色:', e.message);
+                                timbre = null;
+                            }
                         }
 
-                        // 4. 处理二进制音频流
-                        const blob = await synthRes.blob();
+                        if (!timbre) {
+                            // 2b. 预置音色路径:用 cfg.defaultVoice
+                            const payload = MiMoTTS.buildSynthesizePayload(textToSpeak, cfg.defaultVoice, ttsEmoText.value);
+                            blob = await MiMoTTS.synthesize(cfg.apiKey, payload, ttsAbortController.value.signal);
+                        }
+
                         audioUrl.value = URL.createObjectURL(blob);
-
                     } catch (e) {
                         if (e.name === 'AbortError') {
                             // 用户手动停止
@@ -6103,14 +6140,14 @@ const generateVideo = async () => {
                 };
 
                 const saveQwenVoiceText = () => {
-                    localStorage.setItem('storyforge_qwen_voice_text_template', customQwenVoiceTextTemplate.value);
-                    localStorage.setItem('storyforge_use_custom_qwen_voice_text', JSON.stringify(useCustomQwenVoiceText.value));
-                    alert('Qwen 生成文本设置已保存');
+                    localStorage.setItem('storyforge_ai_voice_text_template', customAIVoiceTextTemplate.value);
+                    localStorage.setItem('storyforge_use_custom_ai_voice_text', JSON.stringify(useCustomAIVoiceText.value));
+                    alert('AI 生成文本设置已保存');
                 };
 
                 const resetQwenVoiceText = () => {
                     if (confirm('确定要恢复默认文本吗？')) {
-                        customQwenVoiceTextTemplate.value = defaultQwenVoiceTextTemplate;
+                        customAIVoiceTextTemplate.value = defaultAIVoiceTextTemplate;
                     }
                 };
 
@@ -6123,8 +6160,8 @@ const generateVideo = async () => {
                     localStorage.setItem('storyforge_use_custom_voice_prompt', JSON.stringify(newVal));
                 });
 
-                watch(useCustomQwenVoiceText, (newVal) => {
-                    localStorage.setItem('storyforge_use_custom_qwen_voice_text', JSON.stringify(newVal));
+                watch(useCustomAIVoiceText, (newVal) => {
+                    localStorage.setItem('storyforge_use_custom_ai_voice_text', JSON.stringify(newVal));
                 });
 
                 return {
@@ -6149,7 +6186,7 @@ const generateVideo = async () => {
 
                     // Character Actions (New)
                     characters, addCharacter, deleteCharacter,
-                    analyzeCharacterVoice, generateQwenVoice,
+                    analyzeCharacterVoice, generateAIVoice,
 
                     // Timbre Actions
                     timbres, timbreForm, isEditingTimbre, selectedTimbreId,
