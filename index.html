@@ -3455,33 +3455,22 @@
                             }
                         }
 
-                        // 2. 音色库查找 + 预检
+                        // 2. 音色库查找 + 强制使用角色设计音色(不再降级到 defaultVoice)
                         const timbre = timbres.value.find(t => t.refPath === char.voiceFile);
-                        let blob;
-                        if (timbre) {
-                            try {
-                                const arrayBuffer = await loadAssetFromDB(timbre.refPath);
-                                if (!arrayBuffer) throw new Error('IndexedDB 中找不到该音色');
-                                if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
-                                    console.warn(`[TTS] 台词音色 > 10MB,降级到预置音色`);
-                                    const payload = MiMoTTS.buildSynthesizePayload(line.text, cfg.defaultVoice, styleDesc);
-                                    blob = await MiMoTTS.synthesize(cfg.apiKey, payload, internalSignal);
-                                } else {
-                                    const base64 = arrayBufferToBase64(arrayBuffer);
-                                    const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
-                                    const payload = MiMoTTS.buildVoiceClonePayload(line.text, base64, mime);
-                                    blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, internalSignal);
-                                }
-                            } catch (e) {
-                                if (e.name === 'AbortError') throw e;
-                                console.warn('[TTS] 音色加载失败,降级到预置音色:', e.message);
-                                const payload = MiMoTTS.buildSynthesizePayload(line.text, cfg.defaultVoice, styleDesc);
-                                blob = await MiMoTTS.synthesize(cfg.apiKey, payload, internalSignal);
-                            }
-                        } else {
-                            const payload = MiMoTTS.buildSynthesizePayload(line.text, cfg.defaultVoice, styleDesc);
-                            blob = await MiMoTTS.synthesize(cfg.apiKey, payload, internalSignal);
+                        if (!timbre) {
+                            throw new Error(`角色 "${line.role}" 的设计音色未在音色库中找到(refPath=${char.voiceFile})。\n请先在角色面板点击"AI 生成音色",或重新选择音色。`);
                         }
+                        const arrayBuffer = await loadAssetFromDB(timbre.refPath);
+                        if (!arrayBuffer) {
+                            throw new Error(`角色 "${line.role}" 的设计音色文件丢失(refPath=${timbre.refPath})。\n请重新生成该角色的音色。`);
+                        }
+                        if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
+                            throw new Error(`角色 "${line.role}" 的设计音色超过 MiMo 10MB 限制(${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB)。\n请用更短的样例重新设计音色。`);
+                        }
+                        const base64 = arrayBufferToBase64(arrayBuffer);
+                        const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
+                        const payload = MiMoTTS.buildVoiceClonePayload(line.text, base64, mime);
+                        const blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, internalSignal);
 
                         await saveAssetToDB(`line_audio_${line.id}`, blob);
                         const audioUrl = URL.createObjectURL(blob);
@@ -6066,32 +6055,21 @@ const generateVideo = async () => {
                             timbre.source = 'design';
                         }
 
-                        let blob;
-                        if (timbre) {
-                            // 2a. 音色库路径:读 wav → base64 → inline 传 MiMo cloneVoice
-                            try {
-                                const arrayBuffer = await loadAssetFromDB(timbre.refPath);
-                                if (!arrayBuffer) throw new Error('IndexedDB 中找不到该音色');
-                                if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
-                                    console.warn(`[TTS] 参考音频 > 10MB (${arrayBuffer.byteLength}),降级到预置音色合成`);
-                                    timbre = null;
-                                } else {
-                                    const base64 = arrayBufferToBase64(arrayBuffer);
-                                    const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
-                                    const payload = MiMoTTS.buildVoiceClonePayload(textToSpeak, base64, mime);
-                                    blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, ttsAbortController.value.signal);
-                                }
-                            } catch (e) {
-                                console.warn('[TTS] 音色加载失败,降级到预置音色:', e.message);
-                                timbre = null;
-                            }
-                        }
-
+                        // 强制使用音色库中选中的 timbre(不再降级到 defaultVoice)
                         if (!timbre) {
-                            // 2b. 预置音色路径:用 cfg.defaultVoice
-                            const payload = MiMoTTS.buildSynthesizePayload(textToSpeak, cfg.defaultVoice, ttsEmoText.value);
-                            blob = await MiMoTTS.synthesize(cfg.apiKey, payload, ttsAbortController.value.signal);
+                            throw new Error(`音色 ${ttsRefPath.value} 未在音色库中找到。\n请在音色库中先设计该音色,或重新选择。`);
                         }
+                        const arrayBuffer = await loadAssetFromDB(timbre.refPath);
+                        if (!arrayBuffer) {
+                            throw new Error(`音色文件丢失(refPath=${timbre.refPath})。\n请重新设计该音色。`);
+                        }
+                        if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
+                            throw new Error(`音色文件超过 MiMo 10MB 限制(${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB)。\n请用更短的样例重新设计音色。`);
+                        }
+                        const base64 = arrayBufferToBase64(arrayBuffer);
+                        const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
+                        const payload = MiMoTTS.buildVoiceClonePayload(textToSpeak, base64, mime);
+                        const blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, ttsAbortController.value.signal);
 
                         audioUrl.value = URL.createObjectURL(blob);
                     } catch (e) {
