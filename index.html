@@ -1489,6 +1489,32 @@
                 ];
                 const isSystemEmotion = (name) => SYSTEM_EMOTIONS.some(e => e.name === name);
 
+                // 旧名 → 新名 迁移映射(2026-06-20 情绪名对齐 MiMo 标签)
+                const EMOTION_NAME_MIGRATION = {
+                    '高兴': '开心', '生气': '愤怒', '伤心': '悲伤', '害怕': '恐惧',
+                    '厌恶': '冷漠', '低落': '怅然', '惊喜': '惊讶'
+                    // '平静' 不变
+                };
+                const migrateEmotionName = (name) => EMOTION_NAME_MIGRATION[name] || name;
+                // 就地迁移 emotion 数组 + script lines 里的 emotion 字段
+                const migrateEmotionData = (emotionsArr, scriptList) => {
+                    if (Array.isArray(emotionsArr)) {
+                        emotionsArr.forEach(e => {
+                            if (e && e.name) e.name = migrateEmotionName(e.name);
+                        });
+                    }
+                    if (Array.isArray(scriptList)) {
+                        scriptList.forEach(script => {
+                            const data = script?.data;
+                            if (data?.scriptLines && Array.isArray(data.scriptLines)) {
+                                data.scriptLines.forEach(line => {
+                                    if (line && line.emotion) line.emotion = migrateEmotionName(line.emotion);
+                                });
+                            }
+                        });
+                    }
+                };
+
                 // --- IndexedDB Persistence Logic ---
                 const DB_NAME = 'UnitaleDB';
                 const DB_VERSION = 1;
@@ -2594,8 +2620,11 @@
                                 filterLibrary.value = projectData.libraries.filters || filterLibrary.value; // Fallback to default if not in save
                                  
                                  if (projectData.libraries.emotions && Array.isArray(projectData.libraries.emotions)) {
-                                     const customLoaded = projectData.libraries.emotions.filter(e => !isSystemEmotion(e.name) && Array.isArray(e.vector));
-                                     const systemLoaded = projectData.libraries.emotions.filter(e => isSystemEmotion(e.name));
+                                    // 迁移旧情绪名 → 新名
+                                    migrateEmotionData(projectData.libraries.emotions, projectData.scriptList);
+
+                                    const customLoaded = projectData.libraries.emotions.filter(e => !isSystemEmotion(e.name) && Array.isArray(e.vector));
+                                    const systemLoaded = projectData.libraries.emotions.filter(e => isSystemEmotion(e.name));
                                     const mergedSystem = SYSTEM_EMOTIONS.map(def => {
                                         const saved = systemLoaded.find(s => s.name === def.name);
                                         return { ...def, enabled: saved ? saved.enabled : undefined };
@@ -4303,6 +4332,9 @@
 
                                     // 恢复情绪库：合并系统预设 + 导入的自定义情绪
                                     if (data.libraries.emotions && Array.isArray(data.libraries.emotions)) {
+                                        // 迁移旧情绪名 → 新名
+                                        migrateEmotionData(data.libraries.emotions, data.scriptList);
+
                                         const customImported = data.libraries.emotions.filter(e => !isSystemEmotion(e.name) && Array.isArray(e.vector));
                                         const systemImported = data.libraries.emotions.filter(e => isSystemEmotion(e.name));
 
