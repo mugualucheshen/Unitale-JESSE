@@ -427,23 +427,8 @@
                             <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">情绪名称</label>
                             <input v-model="emotionForm.name"
                                 class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                placeholder="例如: 开心 / 愤怒">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">8维情感向量 (对应: 开心, 愤怒,
-                                悲伤, 恐惧, 冷漠, 怅然, 惊讶, 平静) <span
-                                    class="text-slate-400 font-normal ml-2 normal-case">提示：所有值必须在 0.0 到 1.0
-                                    之间</span></label>
-                            <div class="grid grid-cols-4 md:grid-cols-8 gap-2">
-                                <div v-for="(val, idx) in 8" :key="idx" class="flex flex-col items-center">
-                                    <span class="text-[8px] text-slate-400 mb-1">{{
-                                        ['开心','愤怒','悲伤','恐惧','冷漠','怅然','惊讶','平静'][idx] }}</span>
-                                    <input type="number" step="0.1" min="0" max="1"
-                                        v-model.number="emotionForm.vector[idx]"
-                                        class="w-full px-1 py-1 border rounded text-xs text-center focus:ring-1 focus:ring-blue-500"
-                                        placeholder="0">
-                                </div>
-                            </div>
+                                placeholder="例如: 开心 / 愤怒 / 期待">
+                            <p class="text-[10px] text-slate-400 mt-1">名称会作为 MiMo (风格) 标签前缀传给 TTS。无效标签 MiMo 忽略,不影响合成。</p>
                         </div>
                     </div>
                     <div class="flex gap-2">
@@ -464,8 +449,6 @@
                                 title="启用/禁用此情绪">
                             <div>
                                 <div class="font-bold text-slate-800 text-sm">{{ emo.name }}</div>
-                                <div class="text-[8px] text-slate-400 mt-1 font-mono tracking-tighter"
-                                    v-if="emo.vector">[{{ emo.vector.join(',') }}]</div>
                             </div>
                         </div>
                         <div class="flex gap-2">
@@ -1477,15 +1460,16 @@
             setup() {
                 // --- System Emotions Definition ---
                 // 名称直接采用 MiMo 风格标签(voiceclone 模式无需翻译,直接当 (标签) 用)
+                // 不再需要 8 维向量(原 IndexTTS emo_vector 残留,MiMo 不支持)
                 const SYSTEM_EMOTIONS = [
-                    { id: 'sys_1', name: '开心', vector: [1, 0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'sys_2', name: '愤怒', vector: [0, 1, 0, 0, 0, 0, 0, 0] },
-                    { id: 'sys_3', name: '悲伤', vector: [0, 0, 1, 0, 0, 0, 0, 0] },
-                    { id: 'sys_4', name: '恐惧', vector: [0, 0, 0, 1, 0, 0, 0, 0] },
-                    { id: 'sys_5', name: '冷漠', vector: [0, 0, 0, 0, 1, 0, 0, 0] },
-                    { id: 'sys_6', name: '怅然', vector: [0, 0, 0, 0, 0, 1, 0, 0] },
-                    { id: 'sys_7', name: '惊讶', vector: [0, 0, 0, 0, 0, 0, 1, 0] },
-                    { id: 'sys_8', name: '平静', vector: [0, 0, 0, 0, 0, 0, 0, 1] }
+                    { id: 'sys_1', name: '开心' },
+                    { id: 'sys_2', name: '愤怒' },
+                    { id: 'sys_3', name: '悲伤' },
+                    { id: 'sys_4', name: '恐惧' },
+                    { id: 'sys_5', name: '冷漠' },
+                    { id: 'sys_6', name: '怅然' },
+                    { id: 'sys_7', name: '惊讶' },
+                    { id: 'sys_8', name: '平静' }
                 ];
                 const isSystemEmotion = (name) => SYSTEM_EMOTIONS.some(e => e.name === name);
 
@@ -1770,7 +1754,7 @@
 
                 // 情绪预设状态
                 const emotionPresets = ref([]);
-                const emotionForm = ref({ id: '', name: '', vector: [0, 0, 0, 0, 0, 0, 0, 0] });
+                const emotionForm = ref({ id: '', name: '' });
                 const isEditingEmotion = ref(false);
                 // 音效库状态
                 const sfxLibrary = ref([]);
@@ -2623,7 +2607,7 @@
                                     // 迁移旧情绪名 → 新名
                                     migrateEmotionData(projectData.libraries.emotions, projectData.scriptList);
 
-                                    const customLoaded = projectData.libraries.emotions.filter(e => !isSystemEmotion(e.name) && Array.isArray(e.vector));
+                                    const customLoaded = projectData.libraries.emotions.filter(e => !isSystemEmotion(e.name) && e.name);
                                     const systemLoaded = projectData.libraries.emotions.filter(e => isSystemEmotion(e.name));
                                     const mergedSystem = SYSTEM_EMOTIONS.map(def => {
                                         const saved = systemLoaded.find(s => s.name === def.name);
@@ -3425,12 +3409,13 @@
                     return curve;
                 };
 
+                // 5 级强度(UI 选择) → 3 级 MiMo 强度词
                 const intensityMap = {
-                    "微弱": 0.2,
-                    "稍弱": 0.35,
-                    "中等": 0.5,
-                    "较强": 0.75,
-                    "强烈": 1.0
+                    "微弱": "轻微",
+                    "稍弱": "轻微",
+                    "中等": "明显",
+                    "较强": "强烈",
+                    "强烈": "强烈"
                 };
 
                 const generateLineAudio = async (line, externalSignal = null) => {
@@ -3465,26 +3450,17 @@
                         const cfg = currentTtsConfig.value;
                         if (!cfg.apiKey) throw new Error('当前 TTS 配置缺少 apiKey');
 
-                        // 1. 自动情绪翻译成 (风格) 标签前缀(整段基调)
-                        //    系统情绪名已对齐 MiMo 标签(开心/愤怒/悲伤/恐惧/冷漠/怅然/惊讶/平静),无需翻译
-                        //    用户的 line.text 里手动嵌入的 (情绪) [音频] 标签会原样透传,叠加生效
-                        const preset = emotionPresets.value.find(e => e.name === line.emotion);
+                        // 1. 自动情绪:line.emotion 名字直接当 MiMo (风格) 标签用
+                        //    系统情绪的 name 已经是 MiMo 标签(开心/愤怒/悲伤/...)
+                        //    自定义情绪的 name 也直接用(无效标签 MiMo 忽略,但至少不静默错位)
+                        //    intensity 5 级 → MiMo 3 级(轻微/明显/强烈)
+                        //    用户的 line.text 里手动嵌入的 (情绪) [音频] 标签会原样透传
                         let autoEmotionTag = '';
-                        if (preset && preset.vector) {
-                            // 找最大情绪维度
-                            let maxIdx = 0, maxVal = 0;
-                            for (let i = 0; i < preset.vector.length; i++) {
-                                if (preset.vector[i] > maxVal) { maxVal = preset.vector[i]; maxIdx = i; }
-                            }
-                            // 强度因子
-                            const intensity = isSystemEmotion(line.emotion)
-                                ? (intensityMap[line.intensity] || 0.5)
-                                : 1.0;
-                            if (maxVal * intensity > 0.3) {
-                                const emotionNames = ['开心', '愤怒', '悲伤', '恐惧', '冷漠', '怅然', '惊讶', '平静'];
-                                const intensityWord = intensity >= 0.75 ? '强烈' : intensity >= 0.4 ? '明显' : '轻微';
-                                autoEmotionTag = `(${emotionNames[maxIdx]} ${intensityWord})`;
-                            }
+                        let styleDesc = '';
+                        if (line.emotion) {
+                            const mimoIntensity = intensityMap[line.intensity] || '明显';
+                            autoEmotionTag = `(${line.emotion} ${mimoIntensity})`;
+                            styleDesc = `用${mimoIntensity}的${line.emotion}语气说`;
                         }
 
                         // 2. 音色库查找 + 强制使用角色设计音色(不再降级到 defaultVoice)
@@ -3503,7 +3479,8 @@
                         const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
                         // 自动情绪标签(如有)作为前缀,line.text 内用户手写的 (情绪) [音频] 标签原样透传
                         const finalText = autoEmotionTag ? `${autoEmotionTag}${line.text}` : line.text;
-                        const payload = MiMoTTS.buildVoiceClonePayload(finalText, base64, mime);
+                        // styleDesc 给 user 消息(尝试 spec 允许的"软"路径,看 MiMo 是否真的认)
+                        const payload = MiMoTTS.buildVoiceClonePayload(finalText, base64, mime, styleDesc);
                         const blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, internalSignal);
 
                         await saveAssetToDB(`line_audio_${line.id}`, blob);
@@ -4335,7 +4312,7 @@
                                         // 迁移旧情绪名 → 新名
                                         migrateEmotionData(data.libraries.emotions, data.scriptList);
 
-                                        const customImported = data.libraries.emotions.filter(e => !isSystemEmotion(e.name) && Array.isArray(e.vector));
+                                        const customImported = data.libraries.emotions.filter(e => !isSystemEmotion(e.name) && e.name);
                                         const systemImported = data.libraries.emotions.filter(e => isSystemEmotion(e.name));
 
                                         const mergedSystem = SYSTEM_EMOTIONS.map(def => {
@@ -5979,11 +5956,13 @@ const generateVideo = async () => {
                     };
                   },
 
-                  buildVoiceClonePayload(text, base64Audio, mime) {
+                  buildVoiceClonePayload(text, base64Audio, mime, styleDesc) {
+                    // 试 1: spec 说 voiceclone 时 user 必须空字符串(我们原先遵守)
+                    // 试 2: 把情绪写到 user 消息(违反 spec 例子,但也许 MiMo 实际能识别)
                     return {
                       model: 'mimo-v2.5-tts-voiceclone',
                       messages: [
-                        { role: 'user', content: '' },
+                        { role: 'user', content: styleDesc || '' },
                         { role: 'assistant', content: text }
                       ],
                       audio: { format: 'wav', voice: `data:${mime};base64,${base64Audio}` },
