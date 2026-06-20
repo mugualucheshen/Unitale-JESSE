@@ -430,14 +430,14 @@
                                 placeholder="例如: 开心 / 愤怒">
                         </div>
                         <div class="md:col-span-2">
-                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">8维情感向量 (对应: 高兴, 生气,
-                                伤心, 害怕, 厌恶, 低落, 惊喜, 平静) <span
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-2">8维情感向量 (对应: 开心, 愤怒,
+                                悲伤, 恐惧, 冷漠, 怅然, 惊讶, 平静) <span
                                     class="text-slate-400 font-normal ml-2 normal-case">提示：所有值必须在 0.0 到 1.0
                                     之间</span></label>
                             <div class="grid grid-cols-4 md:grid-cols-8 gap-2">
                                 <div v-for="(val, idx) in 8" :key="idx" class="flex flex-col items-center">
                                     <span class="text-[8px] text-slate-400 mb-1">{{
-                                        ['高兴','生气','伤心','害怕','厌恶','低落','惊喜','平静'][idx] }}</span>
+                                        ['开心','愤怒','悲伤','恐惧','冷漠','怅然','惊讶','平静'][idx] }}</span>
                                     <input type="number" step="0.1" min="0" max="1"
                                         v-model.number="emotionForm.vector[idx]"
                                         class="w-full px-1 py-1 border rounded text-xs text-center focus:ring-1 focus:ring-blue-500"
@@ -1476,14 +1476,15 @@
         createApp({
             setup() {
                 // --- System Emotions Definition ---
+                // 名称直接采用 MiMo 风格标签(voiceclone 模式无需翻译,直接当 (标签) 用)
                 const SYSTEM_EMOTIONS = [
-                    { id: 'sys_1', name: '高兴', vector: [1, 0, 0, 0, 0, 0, 0, 0] },
-                    { id: 'sys_2', name: '生气', vector: [0, 1, 0, 0, 0, 0, 0, 0] },
-                    { id: 'sys_3', name: '伤心', vector: [0, 0, 1, 0, 0, 0, 0, 0] },
-                    { id: 'sys_4', name: '害怕', vector: [0, 0, 0, 1, 0, 0, 0, 0] },
-                    { id: 'sys_5', name: '厌恶', vector: [0, 0, 0, 0, 1, 0, 0, 0] },
-                    { id: 'sys_6', name: '低落', vector: [0, 0, 0, 0, 0, 1, 0, 0] },
-                    { id: 'sys_7', name: '惊喜', vector: [0, 0, 0, 0, 0, 0, 1, 0] },
+                    { id: 'sys_1', name: '开心', vector: [1, 0, 0, 0, 0, 0, 0, 0] },
+                    { id: 'sys_2', name: '愤怒', vector: [0, 1, 0, 0, 0, 0, 0, 0] },
+                    { id: 'sys_3', name: '悲伤', vector: [0, 0, 1, 0, 0, 0, 0, 0] },
+                    { id: 'sys_4', name: '恐惧', vector: [0, 0, 0, 1, 0, 0, 0, 0] },
+                    { id: 'sys_5', name: '冷漠', vector: [0, 0, 0, 0, 1, 0, 0, 0] },
+                    { id: 'sys_6', name: '怅然', vector: [0, 0, 0, 0, 0, 1, 0, 0] },
+                    { id: 'sys_7', name: '惊讶', vector: [0, 0, 0, 0, 0, 0, 1, 0] },
                     { id: 'sys_8', name: '平静', vector: [0, 0, 0, 0, 0, 0, 0, 1] }
                 ];
                 const isSystemEmotion = (name) => SYSTEM_EMOTIONS.some(e => e.name === name);
@@ -1777,7 +1778,7 @@
 
                 const ttsRefFile = ref(null);
                 const ttsRefPath = ref('uploaded/ref.wav'); // 默认路径示例
-                const ttsEmoText = ref('中立');
+                const ttsEmoText = ref('平静');
                 const audioUrl = ref('');
                 const ttsLoading = ref(false);
                 const ttsError = ref('');
@@ -1957,7 +1958,7 @@
 
 2. **可选强度 (Intensity)**: 微弱, 稍弱, 中等, 较强, 强烈
    - 请根据上下文判断情绪的强烈程度。
-   - **旁白强度**: 如果旁白有情绪（如伤心、害怕），强度必须很弱（建议选择 "微弱" 或 "稍弱"）。如果旁白是 "平静" 情绪，强度应为 "中等"。
+   - **旁白强度**: 如果旁白有情绪（如悲伤、恐惧），强度必须很弱（建议选择 "微弱" 或 "稍弱"）。如果旁白是 "平静" 情绪，强度应为 "中等"。
 
 # 规则
 
@@ -2040,14 +2041,14 @@
 ## 输出:
 [
 \${bgmExampleLine}
-  {"type": "dialogue", "role_name": "老李", "text_content": "别接那个电话！", "emotion": "害怕", "intensity": "强烈", "break_duration": 0},
+  {"type": "dialogue", "role_name": "老李", "text_content": "别接那个电话！", "emotion": "恐惧", "intensity": "强烈", "break_duration": 0},
   {"type": "dialogue", "role_name": "旁白", "text_content": "老李猛地按住了我的手，脸色惨白，", "emotion": "平静", "intensity": "中等", "break_duration": 0},
-  {"type": "dialogue", "role_name": "老李", "text_content": "那是昨晚值班的小张打来的。", "emotion": "害怕", "intensity": "较强", "break_duration": 0.5},
+  {"type": "dialogue", "role_name": "老李", "text_content": "那是昨晚值班的小张打来的。", "emotion": "恐惧", "intensity": "较强", "break_duration": 0.5},
   {"type": "dialogue", "role_name": "旁白", "text_content": "我愣住了，看着办公桌上疯狂震动的座机：", "emotion": "平静", "intensity": "中等", "break_duration": 0\${sfxExample}},
-  {"type": "dialogue", "role_name": "我", "text_content": "可是……小张不是今早已经确认死亡了吗？", "emotion": "惊喜", "intensity": "微弱", "break_duration": 0.5},
-  {"type": "dialogue", "role_name": "老李", "text_content": "对，", "emotion": "低落", "intensity": "中等", "break_duration": 0},
+  {"type": "dialogue", "role_name": "我", "text_content": "可是……小张不是今早已经确认死亡了吗？", "emotion": "惊讶", "intensity": "微弱", "break_duration": 0.5},
+  {"type": "dialogue", "role_name": "老李", "text_content": "对，", "emotion": "怅然", "intensity": "中等", "break_duration": 0},
   {"type": "dialogue", "role_name": "旁白", "text_content": "老李的声音在发抖，", "emotion": "平静", "intensity": "中等", "break_duration": 0},
-  {"type": "dialogue", "role_name": "老李", "text_content": "所以，别接。如果你接了，他会问你为什么不救他。", "emotion": "害怕", "intensity": "强烈", "break_duration": 0}
+  {"type": "dialogue", "role_name": "老李", "text_content": "所以，别接。如果你接了，他会问你为什么不救他。", "emotion": "恐惧", "intensity": "强烈", "break_duration": 0}
 ]
 
 # 输入内容
@@ -3436,15 +3437,11 @@
                         if (!cfg.apiKey) throw new Error('当前 TTS 配置缺少 apiKey');
 
                         // 1. 自动情绪翻译成 (风格) 标签前缀(整段基调)
+                        //    系统情绪名已对齐 MiMo 标签(开心/愤怒/悲伤/恐惧/冷漠/怅然/惊讶/平静),无需翻译
                         //    用户的 line.text 里手动嵌入的 (情绪) [音频] 标签会原样透传,叠加生效
                         const preset = emotionPresets.value.find(e => e.name === line.emotion);
                         let autoEmotionTag = '';
                         if (preset && preset.vector) {
-                            // 系统情绪名 → MiMo 风格标签名 映射
-                            const emotionNameMap = {
-                                '高兴': '开心', '生气': '愤怒', '伤心': '悲伤', '害怕': '恐惧',
-                                '厌恶': '冷漠', '低落': '怅然', '惊喜': '惊讶', '平静': '平静'
-                            };
                             // 找最大情绪维度
                             let maxIdx = 0, maxVal = 0;
                             for (let i = 0; i < preset.vector.length; i++) {
@@ -3455,10 +3452,9 @@
                                 ? (intensityMap[line.intensity] || 0.5)
                                 : 1.0;
                             if (maxVal * intensity > 0.3) {
-                                const emotionNames = ['高兴', '生气', '伤心', '害怕', '厌恶', '低落', '惊喜', '平静'];
+                                const emotionNames = ['开心', '愤怒', '悲伤', '恐惧', '冷漠', '怅然', '惊讶', '平静'];
                                 const intensityWord = intensity >= 0.75 ? '强烈' : intensity >= 0.4 ? '明显' : '轻微';
-                                const mimoEmotion = emotionNameMap[emotionNames[maxIdx]] || emotionNames[maxIdx];
-                                autoEmotionTag = `(${mimoEmotion} ${intensityWord})`;
+                                autoEmotionTag = `(${emotionNames[maxIdx]} ${intensityWord})`;
                             }
                         }
 
