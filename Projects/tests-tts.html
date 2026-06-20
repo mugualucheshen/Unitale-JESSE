@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>MiMo TTS 单元测试</title>
+<style>
+  body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #ddd; }
+  .pass { color: #4ade80; }
+  .fail { color: #f87171; }
+  #summary { margin-top: 20px; padding: 10px; background: #2a2a2a; border-radius: 4px; }
+</style>
+</head>
+<body>
+<h1>MiMo TTS 单元测试</h1>
+<div id="results"></div>
+<div id="summary">运行中...</div>
+<script type="module">
+// === 测试结果收集 ===
+const results = [];
+function test(name, fn) {
+  try {
+    fn();
+    results.push({name, status: 'pass'});
+  } catch (e) {
+    results.push({name, status: 'fail', error: e.message});
+  }
+}
+function assertEqual(actual, expected, msg = '') {
+  const a = JSON.stringify(actual);
+  const e = JSON.stringify(expected);
+  if (a !== e) throw new Error(`${msg} expected ${e}, got ${a}`);
+}
+function assert(cond, msg = 'assertion failed') {
+  if (!cond) throw new Error(msg);
+}
+
+import { MiMoTTS } from '../tests-tts-fixture.js';
+
+// === 测试用例区 ===
+// (此文件由后续 task 填充)
+
+// === 渲染结果 ===
+const out = document.getElementById('results');
+results.forEach(r => {
+  const div = document.createElement('div');
+  div.className = r.status;
+  div.textContent = `[${r.status.toUpperCase()}] ${r.name}${r.error ? ' — ' + r.error : ''}`;
+  out.appendChild(div);
+});
+const passed = results.filter(r => r.status === 'pass').length;
+const failed = results.length - passed;
+document.getElementById('summary').innerHTML =
+  `<strong>通过 ${passed} / 失败 ${failed} / 总计 ${results.length}</strong>`;
+</script>
+</body>
+</html>
