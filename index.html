@@ -3467,7 +3467,7 @@
                         if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
                             throw new Error(`角色 "${line.role}" 的设计音色超过 MiMo 10MB 限制(${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB)。\n请用更短的样例重新设计音色。`);
                         }
-                        const base64 = arrayBufferToBase64(arrayBuffer);
+                        const base64 = await arrayBufferToBase64(arrayBuffer);
                         const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
                         const payload = MiMoTTS.buildVoiceClonePayload(line.text, base64, mime);
                         const blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, internalSignal);
@@ -5898,8 +5898,11 @@ const generateVideo = async () => {
 
                 // --- TTS 逻辑 (MiMo 协议) ---
 
-                // ArrayBuffer → base64 辅助函数
-                const arrayBufferToBase64 = (buffer) => {
+                // ArrayBuffer / Blob → base64 辅助函数
+                const arrayBufferToBase64 = async (buffer) => {
+                    if (buffer instanceof Blob) {
+                        buffer = await buffer.arrayBuffer();
+                    }
                     const bytes = new Uint8Array(buffer);
                     let binary = '';
                     const chunkSize = 8192;
@@ -6066,7 +6069,7 @@ const generateVideo = async () => {
                         if (arrayBuffer.byteLength > 10 * 1024 * 1024) {
                             throw new Error(`音色文件超过 MiMo 10MB 限制(${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)}MB)。\n请用更短的样例重新设计音色。`);
                         }
-                        const base64 = arrayBufferToBase64(arrayBuffer);
+                        const base64 = await arrayBufferToBase64(arrayBuffer);
                         const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
                         const payload = MiMoTTS.buildVoiceClonePayload(textToSpeak, base64, mime);
                         const blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, ttsAbortController.value.signal);
