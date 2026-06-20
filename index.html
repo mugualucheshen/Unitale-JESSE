@@ -3435,12 +3435,17 @@
                         const cfg = currentTtsConfig.value;
                         if (!cfg.apiKey) throw new Error('当前 TTS 配置缺少 apiKey');
 
-                        // 1. 情绪 vector → 自然语言风格描述(MiMo 用文本控制情绪)
+                        // 1. 自动情绪翻译成 (风格) 标签前缀(整段基调)
+                        //    用户的 line.text 里手动嵌入的 (情绪) [音频] 标签会原样透传,叠加生效
                         const preset = emotionPresets.value.find(e => e.name === line.emotion);
-                        let styleDesc = '用自然的语气说';
+                        let autoEmotionTag = '';
                         if (preset && preset.vector) {
+                            // 系统情绪名 → MiMo 风格标签名 映射
+                            const emotionNameMap = {
+                                '高兴': '开心', '生气': '愤怒', '伤心': '悲伤', '害怕': '恐惧',
+                                '厌恶': '冷漠', '低落': '怅然', '惊喜': '惊讶', '平静': '平静'
+                            };
                             // 找最大情绪维度
-                            const emotionNames = ['高兴', '生气', '伤心', '害怕', '厌恶', '低落', '惊喜', '平静'];
                             let maxIdx = 0, maxVal = 0;
                             for (let i = 0; i < preset.vector.length; i++) {
                                 if (preset.vector[i] > maxVal) { maxVal = preset.vector[i]; maxIdx = i; }
@@ -3450,8 +3455,10 @@
                                 ? (intensityMap[line.intensity] || 0.5)
                                 : 1.0;
                             if (maxVal * intensity > 0.3) {
+                                const emotionNames = ['高兴', '生气', '伤心', '害怕', '厌恶', '低落', '惊喜', '平静'];
                                 const intensityWord = intensity >= 0.75 ? '强烈' : intensity >= 0.4 ? '明显' : '轻微';
-                                styleDesc = `用${intensityWord}的${emotionNames[maxIdx]}语气说`;
+                                const mimoEmotion = emotionNameMap[emotionNames[maxIdx]] || emotionNames[maxIdx];
+                                autoEmotionTag = `(${mimoEmotion} ${intensityWord})`;
                             }
                         }
 
@@ -3469,7 +3476,9 @@
                         }
                         const base64 = await arrayBufferToBase64(arrayBuffer);
                         const mime = timbre.refPath.toLowerCase().endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav';
-                        const payload = MiMoTTS.buildVoiceClonePayload(line.text, base64, mime);
+                        // 自动情绪标签(如有)作为前缀,line.text 内用户手写的 (情绪) [音频] 标签原样透传
+                        const finalText = autoEmotionTag ? `${autoEmotionTag}${line.text}` : line.text;
+                        const payload = MiMoTTS.buildVoiceClonePayload(finalText, base64, mime);
                         const blob = await MiMoTTS.cloneVoice(cfg.apiKey, payload, internalSignal);
 
                         await saveAssetToDB(`line_audio_${line.id}`, blob);
