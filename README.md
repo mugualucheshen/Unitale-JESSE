@@ -112,3 +112,10 @@ BGM背景音乐资源库：
 
 高度可配置: 自定义 Prompt 模板、情绪预设、音色库和音效素材库。
 
+### Troubleshooting: MiMo CORS 状态
+
+- 2026-06-20:验证通过。`OPTIONS` 与 `POST` 均直连成功,`access-control-allow-origin: *`,允许 `api-key` 与 `content-type` 头。
+- 实施人:Claude + sdsds222
+- 验证命令:见 `docs/superpowers/plans/2026-06-20-mimo-tts-migration.md` Task 1
+
+
