@@ -37,7 +37,178 @@ function assert(cond, msg = 'assertion failed') {
 import { MiMoTTS } from '../tests-tts-fixture.js';
 
 // === 测试用例区 ===
-// (此文件由后续 task 填充)
+
+// --- buildSynthesizePayload (Task 3) ---
+test('buildSynthesizePayload: 完整字段', () => {
+  const p = MiMoTTS.buildSynthesizePayload('你好', 'Chloe', '用开心的语气');
+  assertEqual(p.model, 'mimo-v2.5-tts');
+  assertEqual(p.messages.length, 2);
+  assertEqual(p.messages[0], {role: 'user', content: '用开心的语气'});
+  assertEqual(p.messages[1], {role: 'assistant', content: '你好'});
+  assertEqual(p.audio, {format: 'wav', voice: 'Chloe'});
+  assertEqual(p.stream, false);
+});
+
+test('buildSynthesizePayload: styleDesc 为空时使用 fallback', () => {
+  const p = MiMoTTS.buildSynthesizePayload('你好', 'Chloe', '');
+  assertEqual(p.messages[0].content, '用自然的语气说');
+});
+
+test('buildSynthesizePayload: styleDesc 为 null 时使用 fallback', () => {
+  const p = MiMoTTS.buildSynthesizePayload('你好', 'Chloe', null);
+  assertEqual(p.messages[0].content, '用自然的语气说');
+});
+
+// --- buildVoiceDesignPayload (Task 4) ---
+test('buildVoiceDesignPayload: 默认 optimizeText=true', () => {
+  const p = MiMoTTS.buildVoiceDesignPayload('年轻女声', '示例文本');
+  assertEqual(p.model, 'mimo-v2.5-tts-voicedesign');
+  assertEqual(p.messages[0], {role: 'user', content: '年轻女声'});
+  assertEqual(p.messages[1], {role: 'assistant', content: '示例文本'});
+  assertEqual(p.audio, {format: 'wav', optimize_text_preview: true});
+  assertEqual(p.stream, false);
+});
+
+test('buildVoiceDesignPayload: optimizeText=false 显式传', () => {
+  const p = MiMoTTS.buildVoiceDesignPayload('老男人', '短句', false);
+  assertEqual(p.audio.optimize_text_preview, false);
+});
+
+// --- buildVoiceClonePayload (Task 5) ---
+test('buildVoiceClonePayload: 默认 wav mime + 正确前缀', () => {
+  const p = MiMoTTS.buildVoiceClonePayload('文本', 'BASE64DATA', 'audio/wav');
+  assertEqual(p.model, 'mimo-v2.5-tts-voiceclone');
+  assertEqual(p.messages[0], {role: 'user', content: ''});
+  assertEqual(p.messages[1], {role: 'assistant', content: '文本'});
+  assertEqual(p.audio.voice, 'data:audio/wav;base64,BASE64DATA');
+  assertEqual(p.audio.format, 'wav');
+  assertEqual(p.stream, false);
+});
+
+test('buildVoiceClonePayload: mp3 mime 透传', () => {
+  const p = MiMoTTS.buildVoiceClonePayload('文本', 'XXX', 'audio/mpeg');
+  assertEqual(p.audio.voice.startsWith('data:audio/mpeg;base64,'), true);
+});
+
+// --- parseAudioResponse (Task 6) ---
+test('parseAudioResponse: 合法 JSON 提取 base64', async () => {
+  const fakeData = 'fake audio data';
+  const fakeBase64 = btoa(fakeData);
+  const json = {choices: [{message: {audio: {data: fakeBase64}}}]};
+  const blob = await MiMoTTS.parseAudioResponse(json);
+  assertEqual(blob instanceof Blob, true);
+  assertEqual(blob.type, 'audio/wav');
+  assertEqual(blob.size, fakeData.length);  // 解码后字节数
+});
+
+test('parseAudioResponse: 缺 choices 抛错', async () => {
+  let threw = false;
+  try { await MiMoTTS.parseAudioResponse({}); } catch (e) { threw = true; }
+  assert(threw, '应该抛错');
+});
+
+test('parseAudioResponse: 缺 audio.data 抛错', async () => {
+  let threw = false;
+  try { await MiMoTTS.parseAudioResponse({choices: [{message: {}}]}); } catch (e) { threw = true; }
+  assert(threw, '应该抛错');
+});
+
+// --- withRetry (Task 7) ---
+test('withRetry: 第一次成功 → 1 次调用', async () => {
+  let calls = 0;
+  const result = await MiMoTTS.withRetry(async () => {
+    calls++;
+    return {ok: true, status: 200};
+  });
+  assertEqual(calls, 1);
+  assertEqual(result.status, 200);
+});
+
+test('withRetry: 503 重试 1 次后成功 → 2 次调用', async () => {
+  let calls = 0;
+  const result = await MiMoTTS.withRetry(async () => {
+    calls++;
+    return calls >= 2 ? {ok: true, status: 200} : {ok: false, status: 503};
+  });
+  assertEqual(calls, 2);
+  assertEqual(result.status, 200);
+});
+
+test('withRetry: 500 不重试 → 1 次调用,返回 response', async () => {
+  let calls = 0;
+  const result = await MiMoTTS.withRetry(async () => {
+    calls++;
+    return {ok: false, status: 500};
+  });
+  assertEqual(calls, 1);
+  assertEqual(result.status, 500);
+});
+
+test('withRetry: POST_RETRY_ENABLED=false 时 502 也不重试', async () => {
+  const orig = MiMoTTS.POST_RETRY_ENABLED;
+  MiMoTTS.POST_RETRY_ENABLED = false;
+  let calls = 0;
+  const result = await MiMoTTS.withRetry(async () => {
+    calls++;
+    return {ok: false, status: 502};
+  });
+  MiMoTTS.POST_RETRY_ENABLED = orig;
+  assertEqual(calls, 1);
+  assertEqual(result.status, 502);
+});
+
+// --- synthesize (Task 8) ---
+test('MiMoTTS.synthesize: 401 抛鉴权失败', async () => {
+  const orig = window.fetch;
+  window.fetch = async () => ({ok: false, status: 401, statusText: 'Unauthorized', json: async () => ({})});
+  let err = null;
+  try { await MiMoTTS.synthesize('bad-key', {}, new AbortController().signal); }
+  catch (e) { err = e; }
+  window.fetch = orig;
+  assert(err !== null, '应该抛错');
+  assert(err.message.includes('鉴权失败'), `message 应含"鉴权失败",实际: ${err.message}`);
+});
+
+test('MiMoTTS.synthesize: 429 抛频繁', async () => {
+  const orig = window.fetch;
+  window.fetch = async () => ({ok: false, status: 429, json: async () => ({})});
+  let err = null;
+  try { await MiMoTTS.synthesize('k', {}, new AbortController().signal); }
+  catch (e) { err = e; }
+  window.fetch = orig;
+  assert(err.message.includes('频繁'), `message 应含"频繁",实际: ${err.message}`);
+});
+
+test('MiMoTTS.synthesize: 200 返回 Blob', async () => {
+  const orig = window.fetch;
+  const fakeData = 'audio';
+  const fakeBase64 = btoa(fakeData);
+  window.fetch = async () => ({ok: true, status: 200, json: async () => ({choices: [{message: {audio: {data: fakeBase64}}}]})});
+  const blob = await MiMoTTS.synthesize('k', {}, new AbortController().signal);
+  window.fetch = orig;
+  assertEqual(blob.size, fakeData.length);
+
+test('MiMoTTS.synthesize: 网络异常抛网络错误', async () => {
+  const orig = window.fetch;
+  window.fetch = async () => { throw new TypeError('Failed to fetch'); };
+  let err = null;
+  try { await MiMoTTS.synthesize('k', {}, new AbortController().signal); }
+  catch (e) { err = e; }
+  window.fetch = orig;
+  assert(err.message.includes('网络错误'), `message 应含"网络错误",实际: ${err.message}`);
+});
+
+test('MiMoTTS.synthesize: 携带正确 headers 与 body', async () => {
+  const orig = window.fetch;
+  let captured = null;
+  window.fetch = async (url, opts) => { captured = {url, opts}; return {ok: true, status: 200, json: async () => ({choices: [{message: {audio: {data: btoa('x')}}}]})}; };
+  await MiMoTTS.synthesize('my-key', {model:'mimo-v2.5-tts', messages:[], audio:{format:'wav', voice:'Chloe'}, stream:false}, new AbortController().signal);
+  window.fetch = orig;
+  assertEqual(captured.url, 'https://api.xiaomimimo.com/v1/chat/completions');
+  assertEqual(captured.opts.method, 'POST');
+  assertEqual(captured.opts.headers['api-key'], 'my-key');
+  assertEqual(captured.opts.headers['Content-Type'], 'application/json');
+});
 
 // === 渲染结果 ===
 const out = document.getElementById('results');
